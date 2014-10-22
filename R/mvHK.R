@@ -3,9 +3,9 @@
 #
 # Nicolas Navarro - 2013-2014
 ########################################  
-multiv.scanone <- function(cross,pheno,mod.red,covar,back.qtl=NULL,test="Pillai"){
+mvGenomScan <- function(cross,pheno,mod.red,covar,back.qtl=NULL,test="Pillai",chr){
   # mod.red may be either formula or an externally fitted null model
-  chr <- names(cross$geno)
+  if (missing(chr)) chr <- names(cross$geno)
   if ("X"%in%chr) warning("in case of the X chromosome, mapping may be wrong")
   #eventually re-fit the null model y ~ mu + covar
   if (class(mod.red)[1]=="formula"){

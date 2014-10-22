@@ -45,6 +45,7 @@ scanoneShape <- function(cross, chr, pheno.col,
                           n.cluster     = 1, 
                           test          = c("Pillai","Hotelling.Lawley","Lik.ratio"),
                           formula){
+    # TODO(Nico): Handle pheno ~ sex + logCS + ...
     #---------------------------------------------------
 	# 1. Error checking
 	if (!any(class(cross)=="cross")) 
