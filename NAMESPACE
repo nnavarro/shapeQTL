@@ -3,7 +3,7 @@
 import(qtl, MASS, parallel)
 
 # Export
-export(scanone.shape)
+export(scanoneShape)
 export(update.cross)
 export(get.geno)
 export(fitqtl.shape)
