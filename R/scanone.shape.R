@@ -67,8 +67,7 @@ scanone.shape <- function(cross, chr, pheno.col, model="mvnorm", method="hk", ad
     else formula <- as.formula("pheno ~ covar")
 	}
   else if(is.character(formula)) formula <- as.formula(formula)
-	#Check the formula
-	# TO DO !!!
+	# TODO(N.Navarro): Check the formula
   
 	# 2. permutation handling
 	if(missing(n.perm)) n.perm <- 0
