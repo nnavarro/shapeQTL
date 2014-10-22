@@ -1,0 +1,11 @@
+#exportPattern("^[[:alpha:]]+")
+# Import dependencies
+import(qtl, MASS, parallel)
+
+# Export
+export(scanone.shape)
+export(update.cross)
+export(get.geno)
+export(fitqtl.shape)
+export(effectsize.shape)
+export(plot.shape)
