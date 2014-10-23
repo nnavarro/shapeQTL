@@ -30,12 +30,13 @@
 #' @param formula Provides formula for the null model. Optional.
 #' @export
 #' @seealso  \code{\link{scanone}}
-#' @keywords 
+#' @keywords qtl, shape
 #' @author Nicolas Navarro
 #' @return Function returns one dimensional scan similar to the R/qtl \code{\link{scanone}} function.
 #' @examples 
 #' data(fake.bc)
-#' out <- scanoneShape(cross, chr = 1, pheno.col = 2:3, addcovar = 1, test = "Pillai", 
+#' out <- scanoneShape(cross, chr = 1, pheno.col = 1:2, addcovar = getsex(cross)$sex,
+#' test = "Pillai") 
 scanoneShape <- function(cross, chr, pheno.col, 
                           addcovar      = NULL, 
                           intcovar      = NULL, 
@@ -45,52 +46,57 @@ scanoneShape <- function(cross, chr, pheno.col,
                           n.cluster     = 1, 
                           test          = c("Pillai","Hotelling.Lawley","Lik.ratio"),
                           formula){
+    # TODO(Nico): Check the formula
     # TODO(Nico): Handle pheno ~ sex + logCS + ...
+    # TODO(Nico): check what happens when several test name...
     #---------------------------------------------------
-	# 1. Error checking
-	if (!any(class(cross)=="cross")) 
-        stop("Cross should have class \"cross\".")
-	if (!any(class(cross)%in%c("bc","f2"))) 
-        stop("Cross should be an \"f2\" or a \"bc\".")
-	if (!any(class(cross)=="shape")) 
-        stop("Cross should have class \"shape\".")
-    test <- match.arg(test) # TODO(Nico): check what happens when several..
-	if (missing(chr)) 
-        chr <- names(cross$geno)
-	if (missing(pheno.col)) {
-		warning("Missing pheno.col: All columns of cross$pheno but 'ID' taken as phenotypes.")
-		pheno.col <- -which(colnames(cross$pheno)%in%c("id","iD","Id","ID"))
-	} else {
-        if (is.character(pheno.col)) {
-            if (length(which(colnames(cross$pheno)%in%pheno.col)))
-                stop("Phenotype \"", pheno.col, "\" don't match")
-        pheno.col <- which(colnames(cross$pheno)%in%pheno.col)
-        }
+	# 1. Error checking (doesn't happen if we are in the cluster loop)
+	if (n.cluster > -1) {
+	    if (!any(class(cross)=="cross")) 
+	        stop("Cross should have class \"cross\".")
+	    if (!any(class(cross)%in%c("bc","f2"))) 
+	        stop("Cross should be an \"f2\" or a \"bc\".")
+	    if (!any(class(cross)=="shape")) 
+	        stop("Cross should have class \"shape\".")
+	    if (missing(chr)) 
+	        chr <- names(cross$geno)
+	    if ("X"%in%chr) 
+            warning("in case of the X chromosome, mapping may be wrong")
+	    if (missing(pheno.col)) {
+	        warning("Missing pheno.col: All columns but 'ID' taken as phenotypes.")
+	        pheno.col <- -which(colnames(cross$pheno)%in%c("id","iD","Id","ID"))
+	    } else {
+	        if (is.character(pheno.col)) {
+	            if (length(which(colnames(cross$pheno)%in%pheno.col)))
+	                stop("Phenotype \"", pheno.col, "\" don't match")
+	            pheno.col <- which(colnames(cross$pheno)%in%pheno.col)
+	        }
+	    }
+	    if (is.null(addcovar) && !is.null(intcovar)){
+	        warning("Main effects of covariates added to the model")
+	        addcovar <- intcovar
+	    }
+	    if (missing(n.perm)) 
+	        n.perm <- 0
+	    if (missing(formula)) {
+	        if (is.null(addcovar)) {
+	            formula <- as.formula("pheno ~ 1")
+	        } else {
+	            formula <- as.formula("pheno ~ covar")
+	        }
+	    } else {
+	        if(is.character(formula)) 
+	            formula <- as.formula(formula)
+	    }
+	    if (length(apply(cross$pheno[,pheno.col],c(1,2),is.na))) {
+	        warning("Missing observations in phenotypes have been removed")
+	        cross <- update.cross(cross, new.pheno = cross$pheno, na.rm = TRUE)
+	    }
+	    # Checks obs agreement in geno/pheno
+	    try(nind(cross))
+	    # Get the multivariate statistics to use
+        test <- match.arg(test)
 	}
-	if (is.null(addcovar) && !is.null(intcovar)){
-	    warning("Main effects of covariates added to the model")
-	    addcovar <- intcovar
-	  }
-    if (missing(n.perm)) 
-        n.perm <- 0
-	if (missing(formula)) {
-        if (is.null(addcovar)) {
-            formula <- as.formula("pheno ~ 1")
-        } else {
-            formula <- as.formula("pheno ~ covar")
-        }
-	} else {
-        if(is.character(formula)) 
-            formula <- as.formula(formula)
-	}
-	# TODO(Nico): Check the formula
-    # TODO(Nico): Handle pheno ~ sex + logCS + ...
- 
-    if (length(apply(cross$pheno[,pheno.col],c(1,2),is.na))) {
-        warning("Missing observations in phenotypes have been removed")
-        cross <- update.cross(cross, new.pheno = cross$pheno, na.rm = TRUE)
-    } 
-    nInd <- nind(cross) # This qtl function checks nobs in geno/pheno
     
     #---------------------------------------------------
     # 2. permutation handling
@@ -106,7 +112,7 @@ scanoneShape <- function(cross, chr, pheno.col,
 
     	genomWideMax <- clusterCall(cl, scanoneShape, 
                                 cross, chr, pheno.col, addcovar, intcovar,
-    				            n.perm, perm.Xsp, perm.strata, n.cluster = 0,
+    				            n.perm, perm.Xsp, perm.strata, n.cluster = -1,
                                 test, formula)				              
     	stopCluster(cl)
     	clusterStopped <- TRUE
@@ -115,11 +121,12 @@ scanoneShape <- function(cross, chr, pheno.col,
     	    genomWideMax[[1]] <- c(genomWideMax[[1]], genomWideMax[[j]])
     	
     	out <- genomWideMax[[1]]
-  	} else {
-          if (n.perm > 0 && n.cluster==0) {
+  	} else { 
+          if (n.perm > 0 && n.cluster < 2) {
               genomWideMax <- rep(0, n.perm)
+              n.ind <- nrow(cross$pheno)
               for (perm in 1:n.perm) {
-                  f <- sample(1:nInd)
+                  f <- sample(1:n.ind)
                   cross$pheno <- cross$pheno[f, , drop = FALSE]
                   if (!is.null(addcovar)) 
                       addcovar <- addcovar[f, , drop = FALSE]
@@ -128,7 +135,7 @@ scanoneShape <- function(cross, chr, pheno.col,
                   # Get only the max -logp values over each chromosome 
                   tmp <- scanoneShape(cross, chr, 
     				    pheno.col, addcovar, intcovar,
-    				    n.perm=0, perm.Xsp, perm.strata, n.cluster = 0, 
+    				    n.perm=0, perm.Xsp, perm.strata, n.cluster = -1, 
                         test, formula) 
                   genomWideMax[perm] <- apply(tmp[,-c(1,2),drop=FALSE],2, max, na.rm=TRUE)
 		        }
@@ -138,7 +145,7 @@ scanoneShape <- function(cross, chr, pheno.col,
               # 3. One-dimensional scan
               mvScan1 <- mvGenomScan(cross, as.matrix(cross$pheno[,pheno.col]),
                                      formula, as.matrix(addcovar), 
-                                     back.qtl = NULL, test)
+                                     back.qtl = NULL, test, chr)
               out <- mvScan1  
           }
   	}
