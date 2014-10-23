@@ -75,9 +75,10 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
                                  class(cross)[1], back.qtl, test)
                 # diplotype model: Exp.A = E[0, 1 or 2 alleles of type B]
                 Exp.A <- pr[, , 2] + 2*pr[, , 3]
+                # We call also with the fm.full y ~ covar + q
                 lod.add <- apply(Exp.A,2,lm.shape.test, 
                                  pheno, covar, fm.full, SSCPerr.red, mod.red$rank,
-                                 rank.S, back.qtl, test) # ?? change fm.full to fm.add (not checked)??? prbly not because ExpA here is then qtl and model collapse to ?
+                                 rank.S, back.qtl, test)
                 pr <- pr[,,-dim(pr)[3], drop=TRUE]
                 # Full model:
                 lod.full <- apply(pr,2,lm.shape.test, 
@@ -112,7 +113,9 @@ lm.shape.test <- function(qtl, pheno, covar, fm.full,
     
     # At R version 3.1.1 a supplementary argument appears in the call...
     # See above TODO
-    mod.full <- .Call(stats:::C_Cdqrls, x = x, y = pheno, tol = 1e-07, FALSE)
+    #mod.full <- .Call(stats:::C_Cdqrls, x = x, y = pheno, tol = 1e-07, FALSE)
+    mod.full <- .Call("CdqrlsShapeQTL", x = x, y = pheno, 
+                      tol = 1e-07, chk = FALSE, PACKAGE="shapeQTL")
     n.ind <- nrow(pheno)
     # qtl model
     dfeff <- mod.full$rank - mod.red.rank

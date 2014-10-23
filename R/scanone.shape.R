@@ -45,10 +45,9 @@ scanoneShape <- function(cross, chr, pheno.col,
                           perm.strata   = NULL, 
                           n.cluster     = 1, 
                           test          = c("Pillai","Hotelling.Lawley","Lik.ratio"),
-                          formula){
+                          formula) {
     # TODO(Nico): Check the formula
     # TODO(Nico): Handle pheno ~ sex + logCS + ...
-    # TODO(Nico): check what happens when several test name...
     #---------------------------------------------------
 	# 1. Error checking (doesn't happen if we are in the cluster loop)
 	if (n.cluster > -1) {
@@ -88,13 +87,39 @@ scanoneShape <- function(cross, chr, pheno.col,
 	        if(is.character(formula)) 
 	            formula <- as.formula(formula)
 	    }
-	    if (length(apply(cross$pheno[,pheno.col],c(1,2),is.na))) {
+        # Check if missing observations in phenotype
+	    if (sum(is.na(cross$pheno[,pheno.col])) != 0) {
 	        warning("Missing observations in phenotypes have been removed")
-	        cross <- update.cross(cross, new.pheno = cross$pheno, na.rm = TRUE)
+	        isNAp <- (rowSums(is.na(cross$pheno[, pheno.col, drop = FALSE])) != 0)
+            cross <- subset(cross, ind = cross$pheno$ID[!isNAp])           
+            if (!is.null(addcovar)){
+                addcovar <- addcovar[!isNAp, , drop = FALSE]
+            }
+            if (!is.null(intcovar)){
+                intcovar <- intcovar[!isNAp, , drop = FALSE]
+            }
+	    }
+	    # Check if missing observations in covariates
+	    if (!is.null(addcovar)){
+            if (!is.data.frame(addcovar)) 
+                stop("Addcovar must be a data.frame")
+            isNA <- (rowSums(is.na(addcovar)) != 0)
+            if (!is.null(intcovar)){
+                isNA <- isNA + (rowSums(is.na(intcovar) != 0)
+            } 
+            if (sum(isNA) != 0) {
+	            warning("Missing observations in covariates removed")
+                addcovar <- addcovar[!isNA, , drop = FALSE]
+	            if (!is.null(intcovar)){
+	                intcovar <- addcovar[!isNA, , drop = FALSE]
+	            }
+                # Update cross accordingly
+                cross <- subset(cross, ind = cross$pheno$ID[!isNA])
+            }
 	    }
 	    # Checks obs agreement in geno/pheno
 	    try(nind(cross))
-	    # Get the multivariate statistics to use
+	    # Get the multivariate statistics to use - Only one is allowed
         test <- match.arg(test)
 	}
     
