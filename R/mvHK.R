@@ -5,34 +5,31 @@
 ########################################  
 mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL, 
                         test = "Pillai", chr){
-    # TODO(Nico): check f2 diplotype model
+    # TODO(Nico): re-check f2 diplotype model
     if (missing(chr)) 
         chr <- names(cross$geno)
     #---------------------------------------------------
-    # 1. Fits null model y ~ mu + covar
+    # 1. Fits null model pheno ~ mu + covar1 + covar2 + {back.qtl}
     # mod.red arg may be either formula or an externally fitted null model
     if (class(mod.red)[1]=="formula"){
         fm.red <- as.formula(paste("pheno",deparse(mod.red[-2],width.cutoff=500L)))
-        if (length(fm.red)!=3) 
-            stop("model too long: you need to change covariate names")	
-        mod.red <- lm(fm.red)
     } else {
-        fm.red <- formula(mod.red)
+        fm.red <- as.formula(paste("pheno", paste(deparse(formula(mod.red)[-2], 
+                                            width.cutoff=500L), collapse = "")))                                 
     }
+    # Depend if they are background qtls or not
+    if (!is.null(back.qtl)) {
+        if (!is.matrix(back.qtl))
+            stop("back.qtl must be a matrix of geno probs")
+        fm.red <- as.formula(paste(paste(deparse(fm.red, width.cutoff=500L), collapse = ""),
+                                   "back.qtl", sep = " + "))
+    }
+    mod.red <- lm(fm.red, data = covar)
     SSCPerr.red <- crossprod(mod.red$residuals)
     rank.S <- qr(SSCPerr.red)$rank #min(n,2k-4) 
     #---------------------------------------------------
     # 2. get the full model formula: pheno ~ mu + covar + {backQtl} + q
-    # It will depend if they are background qtls or not
-    if (is.null(back.qtl)) {
-        fm.full <- as.formula(paste(
-            paste("pheno",deparse(fm.red[-2])),
-            "qtl",sep="+"))
-    } else {
-        fm.full <- as.formula(paste(
-            paste("pheno",deparse(fm.red[-2])),
-            "back.qtl", "qtl",sep="+"))
-    }
+        fm.full <- as.formula(paste(paste(deparse(fm.red), collapse = ""), "qtl", sep = " + "))
     #---------------------------------------------------
     # 3. Haley-Knott regression
     result <- NULL
@@ -57,15 +54,7 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
             # 1: full vs null
             # 2: add vs null (aka diplotype model)
             # 3: full vs add (dominance significance)
-            if (is.null(back.qtl)){
-                fm.add <- as.formula(paste(
-                    paste("pheno",deparse(fm.red[-2])),
-                    "Exp.A",sep="+"))
-            } else {
-                fm.add <- as.formula(paste(
-                    paste("pheno",deparse(fm.red[-2])),
-                    "back.qtl","Exp.A",sep="+"))
-            }
+            fm.add <- as.formula(paste(paste(deparse(fm.red), collapse =""), "Exp.A", sep = "+"))
             for (j in chr){
                 pr <- cross$geno[[j]]$prob
                 map <- attr(pr,"map")
@@ -79,7 +68,7 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
                 lod.add <- apply(Exp.A,2,lm.shape.test, 
                                  pheno, covar, fm.full, SSCPerr.red, mod.red$rank,
                                  rank.S, back.qtl, test)
-                pr <- pr[,,-dim(pr)[3], drop=TRUE]
+                pr <- pr[, , -dim(pr)[3], drop = TRUE]
                 # Full model:
                 lod.full <- apply(pr,2,lm.shape.test, 
                                   pheno, covar, fm.full, SSCPerr.red, mod.red$rank,
@@ -93,29 +82,24 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
                 class(z) <- c("scanone","data.frame")
                 result <- rbind(result,z)
             }	
+        } else {
+            stop(paste(class(cross)[1],"cross is not yet implemented"))
         }
-    }
-    else {
-        stop(paste(class(cross)[1],"cross is not yet implemented"))
     }
     return(result)
 }
 #---------------------------------------------------
 lm.shape.test <- function(qtl, pheno, covar, fm.full, 
                           SSCPerr.red, mod.red.rank, rank.E,
-                          back.qtl = NULL, test = "Pillai"){
-    # Quicker to call directly the C warper of the Fortran code and simplier 
-    # than calling the Fortran code directly. However, Cdqrls is not exported.
-    # TODO(Nico): put local copy of Cdqrls in src to ensure package integrity
+                          back.qtl = NULL, test = "Pillai"){    
+    # 1. Set design matrix x = [1, sexM, log.CS, a]
+    x <- model.matrix(as.formula(paste(deparse(fm.full[-2]), collapse = "")), data = covar)
     
-    # 1. Set design matrix x = [1,sexM,momF1,log.CS,a]
-    x <- model.matrix(as.formula(deparse(fm.full[-2])))
-    
-    # At R version 3.1.1 a supplementary argument appears in the call...
-    # See above TODO
-    #mod.full <- .Call(stats:::C_Cdqrls, x = x, y = pheno, tol = 1e-07, FALSE)
-    mod.full <- .Call("CdqrlsShapeQTL", x = x, y = pheno, 
-                      tol = 1e-07, chk = FALSE, PACKAGE="shapeQTL")
+    # At R version 3.1.1 a supplementary argument chk appears in the call
+    # mod.full <- .Call(stats:::C_Cdqrls, x = x, y = pheno, tol = 1e-07, FALSE)
+    # The C function has been registrered once at loading, we don't need the
+    # PACKAGE argument and the look-up is done only once
+    mod.full <- .Call(C_CdqrlsShapeQTL, x = x, y = pheno, tol = 1e-07, chk = FALSE)
     n.ind <- nrow(pheno)
     # qtl model
     dfeff <- mod.full$rank - mod.red.rank
@@ -148,11 +132,11 @@ lm.shape.test.partial <- function(qtl, pheno, covar, fm.full, fm.add, cross.type
         }
     }
     # Full model fitting
-    x <- model.matrix(as.formula(deparse(fm.full[-2])))
-    mod.full <- .Call(stats:::C_Cdqrls, x = x, y = pheno, tol = 1e-07, FALSE)
+    x <- model.matrix(as.formula(paste(deparse(fm.full[-2]), collapse = "")), data = covar)
+    mod.full <- .Call(C_CdqrlsShapeQTL, x = x, y = pheno, tol = 1e-07, chk = FALSE)
     # Additive model fitting
-    x <- model.matrix(as.formula(deparse(fm.add[-2])))
-    mod.add <- .Call(stats:::C_Cdqrls, x = x, y = pheno, tol = 1e-07, FALSE)
+    x <- model.matrix(as.formula(paste(deparse(fm.add[-2]), collapse = "")), data = covar)
+    mod.add <- .Call(C_CdqrlsShapeQTL, x = x, y = pheno, tol = 1e-07, chk = FALSE)
     
     SSCPerr.red <- crossprod(mod.add$residuals)
     mod.red.rank <- mod.add$rank

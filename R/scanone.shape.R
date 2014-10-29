@@ -47,7 +47,6 @@ scanoneShape <- function(cross, chr, pheno.col,
                           test          = c("Pillai","Hotelling.Lawley","Lik.ratio"),
                           formula) {
     # TODO(Nico): Check the formula
-    # TODO(Nico): Handle pheno ~ sex + logCS + ...
     #---------------------------------------------------
 	# 1. Error checking (doesn't happen if we are in the cluster loop)
 	if (n.cluster > -1) {
@@ -71,17 +70,31 @@ scanoneShape <- function(cross, chr, pheno.col,
 	            pheno.col <- which(colnames(cross$pheno)%in%pheno.col)
 	        }
 	    }
-	    if (is.null(addcovar) && !is.null(intcovar)){
-	        warning("Main effects of covariates added to the model")
-	        addcovar <- intcovar
-	    }
+        if (!is.null(addcovar)){
+            if (!is.data.frame(addcovar))
+                addcovar <- as.data.frame(addcovar)
+        }
+        if (!is.null(intcovar)) {
+            if (!is.data.frame(intcovar)) 
+                intcovar <- as.data.frame(intcovar)
+            if (is.null(addcovar)) {
+                warning("Main effects of covariates added to the model")
+                addcovar <- intcovar
+            } else {
+                isCovarAgree <- names(intcovar)%in%names(addcovar)
+                if (any(!isCovarAgree)) {
+                    warning("Main effects of covariates added to the model")
+                    addcovar <- cbind(addcovar, intcovar[, which(!isCovarAgree)])
+                } 
+            } 
+        }
 	    if (missing(n.perm)) 
 	        n.perm <- 0
 	    if (missing(formula)) {
 	        if (is.null(addcovar)) {
 	            formula <- as.formula("pheno ~ 1")
 	        } else {
-	            formula <- as.formula("pheno ~ covar")
+	            formula <- as.formula(paste("pheno ~", paste(names(addcovar), collapse = "+")))
 	        }
 	    } else {
 	        if(is.character(formula)) 
@@ -102,11 +115,13 @@ scanoneShape <- function(cross, chr, pheno.col,
 	    # Check if missing observations in covariates
 	    if (!is.null(addcovar)){
             if (!is.data.frame(addcovar)) 
-                stop("Addcovar must be a data.frame")
+                stop("addcovar must be a data.frame")
             isNA <- (rowSums(is.na(addcovar)) != 0)
             if (!is.null(intcovar)){
-                isNA <- isNA + (rowSums(is.na(intcovar) != 0)
-            } 
+                if (!is.data.frame(addcovar)) 
+                    stop("intcovar must be a data.frame")
+                isNA <- isNA + (rowSums(is.na(intcovar) != 0))
+            }
             if (sum(isNA) != 0) {
 	            warning("Missing observations in covariates removed")
                 addcovar <- addcovar[!isNA, , drop = FALSE]
@@ -141,14 +156,19 @@ scanoneShape <- function(cross, chr, pheno.col,
                                 test, formula)				              
     	stopCluster(cl)
     	clusterStopped <- TRUE
-    	
+        
     	for (j in 2:length(genomWideMax))
-    	    genomWideMax[[1]] <- c(genomWideMax[[1]], genomWideMax[[j]])
+    	    genomWideMax[[1]] <- rbind(genomWideMax[[1]], genomWideMax[[j]])
     	
-    	out <- genomWideMax[[1]]
+    	outScan1 <- genomWideMax[[1]]
   	} else { 
           if (n.perm > 0 && n.cluster < 2) {
-              genomWideMax <- rep(0, n.perm)
+              # If bc result has only 1 lod column, whereas f2 leads to 3 lod columns
+              # TODO(Nico): should do more control on cross type?
+              genomWideMax <- matrix(0, n.perm, 
+                                         ifelse(test = class(cross)[1] == "bc", 
+                                                yes = 1, no = 3))
+              
               n.ind <- nrow(cross$pheno)
               for (perm in 1:n.perm) {
                   f <- sample(1:n.ind)
@@ -162,18 +182,20 @@ scanoneShape <- function(cross, chr, pheno.col,
     				    pheno.col, addcovar, intcovar,
     				    n.perm=0, perm.Xsp, perm.strata, n.cluster = -1, 
                         test, formula) 
-                  genomWideMax[perm] <- apply(tmp[,-c(1,2),drop=FALSE],2, max, na.rm=TRUE)
+                  genomWideMax[perm, ] <- apply(tmp[,-c(1,2),drop=FALSE], 2, max,
+                                                na.rm = TRUE)
 		        }
-              out <- genomWideMax
+                colnames(genomWideMax) <- colnames(tmp)[-c(1,2)]
+		        outScan1 <- genomWideMax
           } else {
               #---------------------------------------------------
               # 3. One-dimensional scan
-              mvScan1 <- mvGenomScan(cross, as.matrix(cross$pheno[,pheno.col]),
-                                     formula, as.matrix(addcovar), 
-                                     back.qtl = NULL, test, chr)
-              out <- mvScan1  
+              # TODO(Nico): Is pheno must be matrix ?
+              outScan1 <- mvGenomScan(cross, pheno = as.matrix(cross$pheno[,pheno.col]),
+                                     mod.red = formula, covar = addcovar, 
+                                     test = test, chr = chr) # back.qtl = NULL  
           }
   	}
-    return(out)
+    return(outScan1)
 }
 			

@@ -1,6 +1,6 @@
 //
 //  shapeQTL_lm.c
-//  This is a local copy of Cdqrls of the stat package
+//  So far, this is a local copy of Cdqrls of the stat package
 //  It will ensure portability of shapeQTL code as with R version 3.1.1
 //  a 4th argument 'chk' appears in this C wrapper
 //
@@ -22,8 +22,8 @@
 #define _(String) (String)
 #endif
 
-/* Declarations for .Call entry points */
-SEXP CdqrlsShapeQTL(SEXP x, SEXP y, SEXP tol, SEXP chk);
+// Function declarations
+static SEXP CdqrlsShapeQTL(SEXP x, SEXP y, SEXP tol, SEXP chk);
 
 
 /* This is a local copy of Cdqrls use in lm.fit but not export. This will ensure portability of shapeQTL code
@@ -45,31 +45,13 @@ SEXP CdqrlsShapeQTL(SEXP x, SEXP y, SEXP tol, SEXP chk);
  with less allocation.
  */
 
-/*
- #define CALLDEF(name, n)  {#name, (DL_FUNC) &name, n}
-static const R_CMethodDef CEntries[]  = {
-    {NULL, NULL, 0}
-};
+// Registrating the routine (see Lang 2001 R News, 1/3: 20-23)
 static const R_CallMethodDef CallEntries[] = {
-    CALLDEF(CdqrlsShapeQTL, 4),
-    {NULL, NULL, 0}
-};
-static const R_FortranMethodDef FortEntries[] = {
-    {NULL, NULL, 0}
-};
-static const R_ExternalMethodDef ExtEntries[] = {
-    {NULL, NULL, 0}
+    {"CdqrlsShapeQTL", (DL_FUNC) &CdqrlsShapeQTL, 4},
+    NULL
 };
 
-void attribute_visible R_init_shapeQTL(DllInfo *dll)
-{
-    R_registerRoutines(dll, CEntries, CallEntries, FortEntries, ExtEntries);
-    R_useDynamicSymbols(dll, FALSE);
-    R_forceSymbols(dll, TRUE);
-
-}
-*/
-SEXP CdqrlsShapeQTL(SEXP x, SEXP y, SEXP tol, SEXP chk)
+static SEXP CdqrlsShapeQTL(SEXP x, SEXP y, SEXP tol, SEXP chk)
 {
     SEXP ans;
     SEXP qr, coefficients, residuals, effects, pivot, qraux;
@@ -133,5 +115,14 @@ SEXP CdqrlsShapeQTL(SEXP x, SEXP y, SEXP tol, SEXP chk)
     
     return ans;
 }
+
+// void ?attribute_visible? R_init_xxxx
+void R_init_shapeQTL(DllInfo *info)
+{
+    R_registerRoutines(info, NULL, CallEntries, NULL, NULL);
+   // R_useDynamicSymbols(info, FALSE); //needed if we want look elsewhere
+   // R_forceSymbols(info, TRUE); //?for what ??
+}
+
 
 
