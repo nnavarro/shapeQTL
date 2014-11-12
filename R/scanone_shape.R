@@ -97,7 +97,7 @@ scanoneShape <- function(cross, chr, pheno.col,
 	            formula <- as.formula(paste("pheno ~", paste(names(addcovar), collapse = "+")))
 	        }
 	    } else {
-	        if(is.character(formula)) 
+	        if (is.character(formula)) 
 	            formula <- as.formula(formula)
 	    }
         # Check if missing observations in phenotype

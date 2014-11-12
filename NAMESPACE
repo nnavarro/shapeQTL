@@ -1,7 +1,6 @@
 useDynLib("shapeQTL", .registration = TRUE, .fixes = "C_")
 # Import dependencies
 import(qtl, MASS, parallel)
-
 # Export
 export(scanoneShape)
 export(update.cross)

@@ -22,9 +22,9 @@ fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula,
       stop("Cross should have class \"shape\".")
   
   #qtl may be q qtl object or a summary from scanone.shape
-  if (!any(class(qtl)%in%c("qtl","summary.scanone"))) 
-      stop("qtl argument should have class \"qtl\" or \"summary.scanone\".")
-  if (any(class(qtl)%in%"summary.scanone")){
+  if (!any(class(qtl)%in%c("qtl","summary.scanone", "summary.stepwiseqtl"))) 
+      stop("qtl argument should have class \"qtl\" or \"summary.scanone\" or \"summary.stepwiseqtl\".")
+  if (any(class(qtl)%in%c("summary.scanone", "summary.stepwiseqtl"))) {
     qtls.name <- find.pseudomarker(cross, chr = qtls$chr, pos = qtls$pos, where = "prob")
     Q <- makeqtl(cross, qtls$chr, qtls$pos, qtls.name, what = "prob")
   } else {
@@ -131,13 +131,15 @@ plot.shapeEffect <- function(mshape, effect, scaling = 1,
                              links, labels, col.links, ...) {
                              
     #checking
-    if (!is.matrix(mshape) || !is.array(mshape)) 
+    if (!is.matrix(mshape) && !is.array(mshape)) 
         stop("mshape should be a matrix or an array")
-    if (!is.matrix(effect) || !is.array(effect))
-        stop("mshape should be a matrix or an array")
-    if (any(dim(mshape) != dim(effect)))
+    if (!is.matrix(effect) && !is.array(effect))
+        stop("effect should be a matrix or an array")
+    if (any(dim(mshape)[1:2] != dim(effect)[1:2]))
         stop("dimensions of inputs didn't agree")
     n.dim <- dim(mshape)[2]
+    if (length(dim(mshape)) > 2) mshape <- mshape[, , 1]
+
     # default values:
     cex <- 0.45
     col1 <- "black"
