@@ -15,7 +15,7 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
         fm.red <- as.formula(paste("pheno",deparse(mod.red[-2],width.cutoff=500L)))
     } else {
         fm.red <- as.formula(paste("pheno", paste(deparse(formula(mod.red)[-2], 
-                                            width.cutoff=500L), collapse = "")))                                 
+                                                          width.cutoff=500L), collapse = "")))                                 
     }
     # Depend if they are background qtls or not
     if (!is.null(back.qtl)) {
@@ -37,7 +37,7 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
         fm.full <- as.formula(paste(paste(deparse(fm.red), collapse = ""), 
                                     "back.qtl + qtl", sep = " + "))
     }
-        
+    
     #---------------------------------------------------
     # 3. Haley-Knott regression
     result <- NULL
@@ -84,12 +84,12 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
                 z <- data.frame(chr = rep(j,length(map)), 
                                 pos = map, 
                                 lod = lod.full, 
-                            lod.add = lod.add,
-                            lod.dom = lod.dom)
+                                lod.add = lod.add,
+                                lod.dom = lod.dom)
                 rownames(z) <- names(map)
                 class(z) <- c("scanone","data.frame")
                 result <- rbind(result,z)
-            }	
+            }    
         } else {
             stop(paste(class(cross)[1],"cross is not yet implemented"))
         }
@@ -124,10 +124,10 @@ lm.shape.test <- function(qtl, pheno, covar, fm.full,
         out <- Hotelling.test(SSCPfull, SSCPerr.full, dfeff, dferr, rank.E)
     } else {
         stop("Multivariate statistics must be either: 
-            Pillai, Likehood.ratio or Hotelling.Lawley")
+             Pillai, Likehood.ratio or Hotelling.Lawley")
     }
     return(out)
-}
+    }
 #---------------------------------------------------
 lm.shape.test.partial <- function(qtl, pheno, covar, fm.full, fm.add, cross.type,
                                   back.qtl = NULL, test = "Pillai"){
@@ -166,10 +166,10 @@ lm.shape.test.partial <- function(qtl, pheno, covar, fm.full, fm.add, cross.type
         out <- Hotelling.test(SSCPfull, SSCPerr.full, dfeff, dferr, rank.E)	
     } else {
         stop("Multivariate statistics must be either: 
-            Pillai, Likehood.ratio or Hotelling.Lawley")
+             Pillai, Likehood.ratio or Hotelling.Lawley")
     }
     return(out) 
-}
+    }
 # Utilities function for multivariate linear testing
 Pillai.test <- function (SSCPef,SSCPer,dfef,dfer,p=qr(SSCPef+SSCPer)$rank) 
 { 
