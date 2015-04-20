@@ -1,11 +1,12 @@
-#exportPattern("^[[:alpha:]]+")
+useDynLib("shapeQTL", .registration = TRUE, .fixes = "C_")
 # Import dependencies
 import(qtl, MASS, parallel)
-
 # Export
-export(scanone.shape)
+export(scanoneShape)
 export(update.cross)
-export(get.geno)
-export(fitqtl.shape)
-export(effectsize.shape)
-export(plot.shape)
+export(getGeno)
+export(asShapeArray)
+export(fitqtlShape)
+export(effectsizeShape)
+export(plot.shapeEffect)
+export(stepwiseqtlShape)

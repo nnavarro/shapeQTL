@@ -1,11 +1,10 @@
 Package: shapeQTL
 Type: Package
-Title: QTL mapping of geometric shape
-Version: 0.2-1
-Date: 2014-09-05
+Title: shape QTL mapping experiment using R
+Version: 0.2-2
+Date: 2014-10-22
 Author: Nicolas Navarro
 Maintainer: Nicolas Navarro <nicolas.navarro@ephe.sorbonne.fr>
 Description: Extends R/qtl package to geometric morphometrics data
 License: GPL (>=2.0)
-Depends:
-    R (>= 3.1.1),qtl,parallel,MASS
+Depends: qtl,parallel,MASS

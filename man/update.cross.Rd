@@ -13,28 +13,35 @@
 
 \item{phen2keep}{An optional vector with names of the original phenotypes to keep}
 
-\item{phen2update}{An optional vector with names of the subset of new phenotypes to keep}
+\item{phen2update}{An optional vector with names of the subset of new
+phenotypes to keep}
 
 \item{id.geno}{An optional vector with the matching id in the genotypes}
 
-\item{na.rm}{An optional logical if individuals with missing phenotypes should be removed from the cross}
+\item{na.rm}{An optional logical if individuals with missing phenotypes
+should be removed from the cross}
 }
 \value{
 Function returns the cross object with updated phenotypes.
 }
 \description{
-A function to merge new phenotypes (eg tangent coordinates) in a cross read by read.cross.
+A function to merge new phenotypes (eg tangent coordinates) in a cross read
+by read.cross.
 }
 \details{
-Function takes a cross object and a dataframe with new phenotypes, matches cross$pheno$id to
-the id column of the new phenotypes. Matching id.geno may be provide as an optional input parameter.
-Additional covariates may be provided as supplementary arguments. Their ordering must match to the new phenotypes.
+Function takes a cross object and a dataframe with new phenotypes, matches
+cross$pheno$id to
+the id column of the new phenotypes. Matching id.geno may be provide as an
+optional input parameter.
+Additional covariates may be provided as supplementary arguments.
+Their ordering must match to the new phenotypes.
 }
 \examples{
 data(fake.bc)
 tgCoords <- fake.bc$pheno[,1:2]
 colnames(tgCoords) <- c("PC1","PC2")
-fake.bc <- update.cross(fake.bc, tgCoords, phen2keep=c("Sex","age"), phen2update=grep("PC",colnames(tgCoords)))
+fake.bc <- update.cross(fake.bc, tgCoords, phen2keep=c("Sex","age"),
+phen2update=grep("PC",colnames(tgCoords)))
 }
 \author{
 Nicolas Navarro
