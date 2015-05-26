@@ -122,6 +122,8 @@ lm.shape.test <- function(qtl, pheno, covar, fm.full,
         out <- LikelihoodRatio.test(SSCPerr.full, SSCPerr.red, dfeff, dferr, rank.E)
     } else if (pmatch(test, "Hotelling.Lawley", nomatch = 0)) {
         out <- Hotelling.test(SSCPfull, SSCPerr.full, dfeff, dferr, rank.E)
+    } else if (pmatch(test,"GoodallF",nomatch=0)) {
+        out <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
     } else {
         stop("Multivariate statistics must be either: 
              Pillai, Likehood.ratio or Hotelling.Lawley")
@@ -164,6 +166,8 @@ lm.shape.test.partial <- function(qtl, pheno, covar, fm.full, fm.add, cross.type
         out <- LikelihoodRatio.test(SSCPerr.full, SSCPerr.red, dfeff, dferr, rank.E)
     } else if (pmatch(test,"Hotelling.Lawley",nomatch=0)) {
         out <- Hotelling.test(SSCPfull, SSCPerr.full, dfeff, dferr, rank.E)	
+    } else if (pmatch(test,"GoodallF",nomatch=0)) {
+        out <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)    
     } else {
         stop("Multivariate statistics must be either: 
              Pillai, Likehood.ratio or Hotelling.Lawley")
@@ -185,7 +189,7 @@ Pillai.test <- function (SSCPef,SSCPer,dfef,dfer,p=qr(SSCPef+SSCPer)$rank)
     A <- Re(A)
     V <- sum(A/(1+A))
     Fapprox <- V/(s-V) * (df2/df1)
-    return(-pf(Fapprox,df1,df2,lower.tail=F,log.p=T)/log(10))
+    return(-pf(Fapprox,df1,df2,lower.tail=FALSE,log.p=TRUE)/log(10))
 }
 LikelihoodRatio.test <- function(SSCPfull,SSCPred,dfef,dfer,p=qr(SSCPfull)$rank)
 {
@@ -196,6 +200,16 @@ LikelihoodRatio.test <- function(SSCPfull,SSCPred,dfef,dfer,p=qr(SSCPfull)$rank)
     eig <- eigen(SSCPred,only.values=TRUE)$values
     det.red <- prod(eig[eig>.Machine$double.eps])
     return(scale*log10(det.full/det.red))
+}
+goodallF.test <- function(SSfull,SSred,dfe.full,dfe.red,dim){
+    SSfull <- sum(SSfull)
+    SS <- sum(SSred)-SSfull
+    dfq <- (dfe.red-dfe.full)*dim
+    dfe <- dfe.full*dim
+    MSq <- SS/dfq
+    MSe <- SSfull/dfe
+    Fstat <- MSq/MSe
+    return(-pf(Fstat,dfq,dfe,lower.tail=FALSE,log.p=TRUE)/log(10))
 }
 Hotelling.test <- function(SSef,SSer,dfef,dfer,p=qr(SSef+SSer)$rank){
     #D'apres Claude 2008, p.252 
@@ -208,5 +222,6 @@ Hotelling.test <- function(SSef,SSer,dfef,dfer,p=qr(SSef+SSer)$rank){
     Fapprox <- Ht*(2*(s*m+1))/(s^2*(2*t1+s+1))
     ddfnum <- s*(2*t1+s+1)
     ddfden <- 2*(s*m+1)
-    -pf(Fapprox,ddfnum,ddfden,lower.tail=F,log.p=T)/log(10)
+    return(-pf(Fapprox,ddfnum,ddfden,lower.tail=FALSE,log.p=TRUE)/log(10))
 }
+

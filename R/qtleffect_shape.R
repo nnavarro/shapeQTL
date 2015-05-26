@@ -7,7 +7,7 @@
 #' @keywords shape effect
 #' @note If cross is ....
 #' @examples
-#' eff <- fitqtl.shape(cross, pheno.col=1:2, qtl, covar=NULL, "y~covar")
+#' eff <- fitqtlShape(cross, pheno.col=1:2, qtl)
 #' @export
 
 fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula, 
@@ -81,15 +81,18 @@ fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula,
 #' @param shape A optional matrix of shape variables [n.ind n.pheno]
 #' @param geno A optional matrix of genotype data [n.ind n.qtl]
 #' @return The function returns the effect size of qtls.
-#' @note If the shape matrix and/or the genotypes are provided, then the function returns a list with the ES standardized by genotype variance and the percentage explained of variance of the projection scores. 
+#' @note If the shape matrix and/or the genotypes are provided, then the function returns a dataframe with the ES standardized by genotype variance and the percentage explained of variance of the projection scores. 
 #' @author Nicolas Navarro
 #' @examples 
 #' ES <- effectsizeShape(qtl, shape, geno = as.matrix(getGeno(cross, qtl)))
 #' @export
-effectsizeShape <- function(qtl, shape=NULL, geno=NULL,...){
-    if (!is.null(shape) && class(shape) != "matrix") stop("shape must be a matrix")
-    if (!is.matrix(qtl)) stop("qtl must be a matrix")
-    qtl <- qtl[!(rownames(qtl)%in%"Intercept"), ,drop = FALSE]
+effectsizeShape <- function(qtl, shape=NULL, geno=NULL, ...){
+    if (!is.matrix(qtl)) 
+        stop("qtl must be a matrix")
+    if (!is.null(shape) && class(shape) != "matrix") 
+        stop("shape must be a matrix")
+
+    qtl <- qtl[!(rownames(qtl)%in%"Intercept"), , drop = FALSE]
     ES <- sqrt(rowSums(qtl^2))
     if (!is.null(shape)) {
         SS <- SSprojScres.model <- SSmod <- rep(NA,nrow(qtl))
@@ -100,16 +103,15 @@ effectsizeShape <- function(qtl, shape=NULL, geno=NULL,...){
             Reg.proj <- shape %*% qtl[i, ] %*% sqrt(solve(t(qtl[i, ]) %*% qtl[i,]))
             SS[i] <- crossprod(scale(Reg.proj, scale = FALSE))
             if (!is.null(geno)) {
-                xx <- as.matrix(geno[,-i])
-                mod.red <- lm(Reg.proj~xx)
-                mod <- lm(Reg.proj~geno)
+                xx <- as.matrix(geno[, -i])
+                mod.red <- lm(Reg.proj ~ xx)
+                mod <- lm(Reg.proj ~ geno)
                 SSmod[i] <- crossprod(mod.red$residuals) - crossprod(mod$residuals)
                 
-                plot(Reg.proj~geno[,i], xlab = expression(Pr(g[i]==j~"|"~bold(M)[i])),
+                plot(Reg.proj ~ geno[,i], xlab = expression(Pr(g[i]==j~"|"~bold(M)[i])),
                      ylab = "proj.Scores", main = rownames(qtl)[i], ...) 
-                abline(lm(Reg.proj~geno[,i]), ...)
-                #stripchart(Reg.proj~geno[,i],vertical=TRUE,...)
-                SSprojScres.resids <- lm(Reg.proj~geno[,i])$residuals
+                abline(lm(Reg.proj ~ geno[,i]), ...)
+                SSprojScres.resids <- lm(Reg.proj ~ geno[,i])$residuals
                 SSprojScres.model[i] <-  SS[i] - crossprod(SSprojScres.resids)
                 
             }    
@@ -125,9 +127,9 @@ effectsizeShape <- function(qtl, shape=NULL, geno=NULL,...){
         # This is the ammount of variance explained in that direction 
         perc.SSprojScres.explained <- SSprojScres.model / SS * 100
         names(SS) <- names(perc.SS) <- names(ES)
-        
-        ES <- list(pD = ES, pD.std = pD.std, '%SS' = perc.SS, '%SS.projScr' = perc.SSprojScres, 
-                   '%SS.projScrExplained' = perc.SSprojScres.explained, '%SST'=SSmod/SST*100)
+        pD <- ES
+        perc.SST <- SSmod / SST * 100
+        ES <- data.frame(pD, pD.std, perc.SS, perc.SSprojScres, perc.SSprojScres.explained, perc.SST)
     }
     return(ES)    
 }  

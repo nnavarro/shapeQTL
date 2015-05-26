@@ -288,7 +288,9 @@ leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, SSCP
         if (pmatch(test,"Pillai",nomatch=0)) lod[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
         if (pmatch(test,"Lik.ratio",nomatch=0)) lod[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
         if (pmatch(test,"Hotelling.Lawley",nomatch=0)) lod[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+        if (pmatch(test,"GoodallF",nomatch=0)) lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
     }
+    
     qtls <- data.frame(qtls$chr, qtls$pos, lod)
     colnames(qtls) <- c("chr", "pos", "lod") 
     
@@ -323,6 +325,7 @@ drop1qtl <- function(cross,qtls,formula.red,pheno,covar,threshold,add.only=FALSE
         if (pmatch(test,"Pillai",nomatch=0)) partial.logp[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
         if (pmatch(test,"Lik.ratio",nomatch=0)) partial.logp[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
         if (pmatch(test,"Hotelling.Lawley",nomatch=0)) partial.logp[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+        if (pmatch(test,"GoodallF",nomatch=0)) lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
     }
     names(partial.logp) <- rownames(qtls)
     if (any(partial.logp<threshold)) {
@@ -404,7 +407,6 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
     
     run.model <- TRUE
     iter <- 0
-    
     if (!is.null(chr)) {
         if (length(chr) > 1) {
             chr <- chr[1]
@@ -455,9 +457,9 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
             tmp.cross <- subset(cross, chr = qtls[target.qtl[q], 'chr'])
             tmp <- mvGenomScan(tmp.cross, pheno, mod.red = fm.red, covar = covar,
                                back.qtl = geno, test = test)
-            # So far, selection only on full model (not on dominance or additive) 
+            # So far, selection only on full model (not just on dominance or additive only) 
             if (ncol(tmp) > 3) { 
-                tmp <- tmp[, 1:3]
+                tmp <- tmp[, 1:3, drop = FALSE]
             }
             tmp[is.na(tmp[, 3]), 3] <- 0
             mx.tmp <- max(tmp) #get R/qtl max over the chromosome
@@ -468,6 +470,7 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
                 print(mx.tmp)
             }
             qtls[target.qtl[q], ] <- mx.tmp
+            qtls[target.qtl[q], 'chr'] <- as.character(mx.tmp$chr) #this is because of chr is a factor
             outStep[[q]] <- tmp
         }
         if(verbose) cat(" done\n")
@@ -492,7 +495,9 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
         }  
         tmp[is.na(tmp[, 3]), 3] <- 0
         lastOut[[q]] <- tmp
-        qtls[q, ] <- max(tmp)	
+        mx.tmp <- max(tmp)
+        qtls[q, ] <- mx.tmp
+        qtls[q, 'chr'] <- as.character(mx.tmp$chr) #!! because chr factor
     }
     qtls.name <- find.pseudomarker(cross, qtls$chr, qtls$pos, where = "prob")	
     QTL <- makeqtl(cross, qtls$chr, qtls$pos, qtls.name, what = "prob")

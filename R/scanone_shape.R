@@ -26,7 +26,7 @@
 #' @param perm.strata - KEEP IT DEFAULT, not use so far
 #' @param n.cluster Number of clusters for parallelization of permutations
 #' @param test Multivariate test statistics: \"Pillai\", \"Hotelling.Lawley\",
-#' \"Lik.ratio\". Allows partial matching.
+#' \"Lik.ratio\", \"GoodallF\". Allows partial matching.
 #' @param formula Provides formula for the null model. Optional.
 #' @export
 #' @seealso  \code{\link{scanone}}
@@ -44,7 +44,7 @@ scanoneShape <- function(cross, chr, pheno.col,
                          perm.Xsp      = FALSE, 
                          perm.strata   = NULL, 
                          n.cluster     = 1, 
-                         test          = c("Pillai","Hotelling.Lawley","Lik.ratio"),
+                         test          = c("Pillai","Hotelling.Lawley","Lik.ratio", "GoodallF"),
                          formula) {
     # TODO(Nico): Check the formula
     #---------------------------------------------------
@@ -56,6 +56,10 @@ scanoneShape <- function(cross, chr, pheno.col,
             stop("Cross should be an \"f2\" or a \"bc\".")
         if (!any(class(cross)=="shape")) 
             stop("Cross should have class \"shape\".")
+        if (!("prob"%in%names(cross$geno[[1]])))
+            stop("First run calc.genoprob()")
+        if (is.null(attr(cross$geno[[1]]$prob, which="map")))
+            stop("attr(cross$geno[[i]]$prob, which=\"map\") doesn't exist.")
         if (missing(chr)) 
             chr <- names(cross$geno)
         if ("X"%in%chr) 
