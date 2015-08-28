@@ -173,7 +173,7 @@ plot.shapeEffect <- function(mshape, effect, scaling = 1,
     pch <- 19
     lwd <- 2
     xlab <- ylab <- ""
-    if (missing(labels)) labels <- c(1:n.land)
+    if (missing(labels)) labels <- c(1:nrow(mshape))
     # Process suppl args
     argin <- list(...)
     if (length(argin)) {

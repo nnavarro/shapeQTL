@@ -41,11 +41,12 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
     #---------------------------------------------------
     # 3. Haley-Knott regression
     result <- NULL
-    if (class(cross)[1]=="bc"){
+    if (any(class(cross)%in%c("bc","happy"))){  
         for (j in chr){
             pr <- cross$geno[[j]]$prob
             map <- attr(pr,"map")
-            pr <- pr[,,-dim(pr)[3],drop=TRUE]
+            if (any(class(cross)%in%c("bc"))) 
+                pr <- pr[,,-dim(pr)[3],drop=TRUE]
             lod <- apply(pr,2,lm.shape.test, pheno, covar, fm.full, SSCPerr.red,
                          mod.red$rank, rank.S, back.qtl, test)
             z <- data.frame(chr = rep(j,length(map)), 
@@ -57,7 +58,7 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
         } 
         class(result) <- c("scanone","data.frame")
     } else {
-        if(class(cross)[1]=="f2"){
+        if(any(class(cross)%in%c("f2"))){
             # For f2 intercross there are 3 possible tests:
             # 1: full vs null
             # 2: add vs null (aka diplotype model)

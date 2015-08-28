@@ -52,8 +52,8 @@ scanoneShape <- function(cross, chr, pheno.col,
     if (n.cluster > -1) {
         if (!any(class(cross)=="cross")) 
             stop("Cross should have class \"cross\".")
-        if (!any(class(cross)%in%c("bc","f2"))) 
-            stop("Cross should be an \"f2\" or a \"bc\".")
+        if (!any(class(cross)%in%c("bc","f2", "happy"))) 
+            stop("Cross should be an \"f2\", a \"bc\" or \"happy\".")
         if (!any(class(cross)=="shape")) 
             stop("Cross should have class \"shape\".")
         if (!("prob"%in%names(cross$geno[[1]])))
