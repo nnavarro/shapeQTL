@@ -1,17 +1,34 @@
-#' fitqtlShape is a function that allows estimating qtl effect.
 #' @title fitqtlShape
-#' @author Nicolas Navarro
-#' @param cross A cross object.
-#' @return The function returns the qtl shape effects, eventually projected back in the tangent space.
-#' @references xxxx
-#' @keywords shape effect
-#' @note If cross is ....
-#' @examples
-#' eff <- fitqtlShape(cross, pheno.col=1:2, qtl)
+#' @description Estimates qtl effect 
+#' @details Function takes a cross object        
+#' 
+#' @param cross A cross object containing genotypes and some phenotypes
+#' @param pheno.col A numerical vector with column indicies in cross$pheno of 
+#' the phenotypes to map or a vector containing their names. 
+#' @param qtl An 
+#' @param covar An optional data.frame of covariates 
+#' @param formula A formula ccc
+#' @param method Indicates whether to use multiple imputation or Haley-Knott regression. Only 'hk' is tested so far.
+#' @param forceXcovar Not use so far. Keep it default.
+#' @param pca An optional prcomp object from \code{\link{prcomp}} function use to get PC scores or just the corresponding eigenvector matrix. Use to return the effect in their original coordinates (PCscores back to tgCoords)
 #' @export
+#' @keywords utilities
+#' @author Nicolas Navarro
+#' @return Function returns qtl effects
+#' @examples 
+#' data(fake.bc)
+#' fake.bc <- update.cross(fake.bc, phen2keep=colnames(fake.bc$pheno))
+#' fake.bc <- calc.genoprob(fake.bc)
+#' qtl <- makeqtl(fake.bc, chr = c(1, 8, 13), pos=c(26, 56, 28), what="prob")
+#' eff <- fitqtlShape(fake.bc, pheno.col=grep('pheno',colnames(fake.bc$pheno)), qtl)
+#' # Using PC scores
+#' pca <- prcomp(fake.bc$pheno[,c('pheno1','pheno2')])
+#' PCs <- data.frame(Id=1:nrow(pca$x), pca$x)
+#' fake.bc <- update.cross(fake.bc, new.pheno=PCs)
+#' eff <- fitqtlShape(fake.bc, pheno.col=grep("PC",colnames(fake.bc$pheno)), qtl, pca=pca)
 
 fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula, 
-                        method="hk", model="mvnorm",dropone=FALSE, get.ests=TRUE, run.checks=TRUE, forceXcovar=FALSE, pca=NULL) 
+                        method="hk", forceXcovar=FALSE, pca=NULL) 
 {
     if (!any(class(cross) == "cross")) 
         stop("Cross should have class \"cross\".")
@@ -56,7 +73,7 @@ fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula,
     partial.effect <- matrix(NA, 1+ncov+Q$n.qtl*(n.gen-1), length(pheno.col))
     for (i in pheno.col){
         partial.effect [,i-min(pheno.col)+1] <- fitqtl(cross, pheno.col = i, covar = covar,
-                                                       method = "hk", qtl = Q, formula = fm.full,
+                                                       method = method, qtl = Q, formula = fm.full,
                                                        dropone = FALSE, get.est = TRUE)$ests$ests
     }
     if (!is.null(pca)){
@@ -65,7 +82,7 @@ fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula,
     
     # c("intercept",colnames(covar),rownames(qtls))
     rownames(partial.effect) <- names(fitqtl(cross, pheno.col = i, covar = covar, 
-                                             method="hk", qtl = Q, formula = fm.full, 
+                                             method = method, qtl = Q, formula = fm.full, 
                                              dropone = FALSE, get.ests = TRUE)$ests$ests)
     
     class(partial.effect) <- c("qtleffect",class(partial.effect))
@@ -206,7 +223,8 @@ plot.shapeEffect <- function(mshape, effect, scaling = 1,
         }
     }
 }
-#BackRotation using non-zero eigenvectors
+# BackRotation using non-zero eigenvectors
+# Utility function
 backRotation <- function(effect, pca){
     
     if (!is.matrix(effect)) 
@@ -216,7 +234,7 @@ backRotation <- function(effect, pca){
     if (class(pca)=="prcomp"){
         null.eigenvalues <- pca$sdev^2<.Machine$double.eps
         #But people may have selected less variables (eg few 1st PCs)
-        if (sum(null.eigenvalues)!=ncol(effect)) 
+        if (length(null.eigenvalues)!=ncol(effect)) 
             null.eigenvalues[(ncol(effect)+1):length(null.eigenvalues)] <- TRUE
         rotation <- pca$rotation[,!null.eigenvalues]
     } else {
@@ -227,21 +245,21 @@ backRotation <- function(effect, pca){
     return(effect%*%t(rotation))
 }
 
-#' 
 #' @title asShapeArray
-#' @author Nicolas Navarro
 #' @description Convert a matrix of landmark coordinates into an array [n.land x n.dim x n.obs].
 #' @details The function converts a matrix of landmark coordinates into an array. Such arrays are common format used in other morphometrics packages (shape, geomorph, Morpho). Each row of the input matrix contains coordinates for a single specimens.
 #' @param shapes A matrix of shape coordinates n.obs rows of [x1 y1 {z1} x2 y2 {z2} ...]
 #' @param n.land Number of landmarks
 #' @param n.dim Number of dimensions (2 or 3)
 #' @param byrow logical (default TRUE: data arranged initially according to x1 y1 z1 x2 y2 z2...). FALSE: data arranged initially according to x1 x2 x3 .... xp y1 .... yp z1 .... zp (used in the Morpho package)
+#' @export
+#' @keywords utilities
+#' @author Nicolas Navarro
 #' @return The function returns a multidimensional array [n.land x n.dim x n.obs]. The third dimension contains the names of each specimens if it was specified as row names in the input matrix.
 #' @seealso  \code{\link[geomorph]{arrayspecs}} 
 #' @examples
 #' x <- matrix(rnorm(5*3*2),nrow=5, byrow=TRUE) # 5 random triangles
 #' asShapeArray(x, 3, 2, byrow = TRUE) 
-#' @export
 asShapeArray <- function(shapes, n.land, n.dim, byrow = TRUE){   
     if (!is.matrix(shapes)) 
         stop("shapes must be a matrix")

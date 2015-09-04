@@ -31,7 +31,7 @@ stepwiseqtlShape(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 10,
 (Not as in \code{\link[qtl]{summary.scanone}}). Here setting to TRUE may be used
 with f2 cross to force a diplotype model (pure additive)}
 
-\item{scan.pairs}{Logical. (Default FALSE) #keep default. Not use so far}
+\item{scan.pairs}{Logical. (Default FALSE) #keep it default. Not use so far}
 
 \item{penalties}{Genomewide threshold}
 
@@ -42,19 +42,26 @@ with f2 cross to force a diplotype model (pure additive)}
 \item{verbose}{Logical (Default FALSE)}
 
 \item{test}{Multivariate statistics (Default "Pillai". Others are : "Hotelling.Lawley",
-"Lik.ratio".)}
+"Lik.ratio", "Goodall")}
 }
 \value{
-The function returns .
+The function returns a qtl object.
 }
 \description{
-Runs a stepwise model search
+Runs a stepwise multiple QTL model search using penalized negative $log_{10}$ of the p-value
 }
 \details{
 The function built multiple QTL models using penalized negative $log_{10}$ of the p-value (as a multivariate analogue of the penalized LOD score of the R/qtl package). The search is limited so far to a model without interaction
 }
 \examples{
-?stepwiseqtlShape
+data(fake.bc)
+fake.bc <- calc.genoprob(fake.bc, step=2.5)
+fake.bc <- update.cross(fake.bc, phen2keep = names(fake.bc$pheno)) #Just update the class of fake.bc
+covar <- fake.bc$pheno[, c('sex','age')]
+out1 <- scanoneShape(fake.bc, pheno.col = 1:2, addcovar = covar,
+test = "Pillai")
+Q <- max(out1)
+outStep <- stepwiseqtlShape(fake.bc, pheno.col = 1:2, qtl = Q, max.qtl = 3, covar = covar, penalties=2.5, verbose = TRUE)
 }
 \author{
 Nicolas Navarro
@@ -65,4 +72,5 @@ Broman and Sen 2009. A guide to QTL mapping with R/qtl
 \seealso{
 \code{\link[qtl]{stepwiseqtl}}
 }
+\keyword{analysis}
 

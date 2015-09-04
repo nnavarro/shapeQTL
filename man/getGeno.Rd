@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils_shape.R
 \name{getGeno}
 \alias{getGeno}
-\title{Get genotypes in a cross at qtl positions}
+\title{getGeno}
 \usage{
 getGeno(cross, Q, add.only = FALSE)
 }
@@ -11,23 +11,21 @@ getGeno(cross, Q, add.only = FALSE)
 
 \item{Q}{A data.frame containing chr and pos (similar to the output of summary.scanone)}
 
-\item{add.only}{An optional argument (Default: FALSE). TRUE force the output to the probability of the number of B alleles in F2}
+\item{add.only}{An optional argument (Default: FALSE). If f2 cross, add.only=TRUE forces the output to be the expected number of B alleles (pure additive model)}
 }
 \value{
 Function returns the genotype with updated phenotypes.
 }
 \description{
-A function to get genotypes in a cross
+Get genotypes in a cross at qtl positions
 }
 \details{
-Function takes a cross object and summary.scanone object, matches cross$pheno$id to
-the id column of the new phenotypes. Matching id.geno may be provide as an optional input parameter.
-Additional covariates may be provided as supplementary arguments. Their ordering must match to the new phenotypes.
+Function takes a cross object and a data.frame with 'chr' and 'pos' and returns genotype probabilities at the closest position in the genetic map.
 }
 \examples{
 data(fake.bc)
 fake.bc <- calc.genoprob(fake.bc)
-Q <- data.frame(chr=1,pos=26)
+Q <- data.frame(chr=1, pos=26)
 geno <- getGeno(fake.bc, Q)
 }
 \author{

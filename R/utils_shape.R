@@ -1,17 +1,11 @@
-#' Update phenotypes and covariates in a cross qtl object
-#' 
-#' A function to merge new phenotypes (eg tangent coordinates) in a cross read 
-#' by read.cross.
-#' 
-#' Function takes a cross object and a dataframe with new phenotypes, matches 
-#' cross$pheno$id to 
-#' the id column of the new phenotypes. Matching id.geno may be provide as an 
+#' @title update.cross
+#' @description Update phenotypes and covariates in a cross qtl object. New phenotypes (for ex. tangent coordinates) are merged to an existing cross object obtained from \code{\link{read.cross}}
+#' @details Function takes a cross object and a dataframe with new phenotypes (tangent coordinates, PC scores,...), matches cross$pheno$ID to the id column of the new phenotypes. Matching id.geno may be provide as an 
 #' optional input parameter.
-#' Additional covariates may be provided as supplementary arguments. 
-#' Their ordering must match to the new phenotypes.       
+#' Additional covariates may be provided as supplementary arguments but their ordering must match to the new phenotypes.       
 #' 
 #' @param cross A cross object containing genotypes and some phenotypes
-#' @param new.pheno A data.frame containing new phenotypes
+#' @param new.pheno An optional data.frame containing new phenotypes
 #' @param phen2keep An optional vector with names of the original phenotypes to keep
 #' @param phen2update An optional vector with names of the subset of new 
 #' phenotypes to keep
@@ -25,10 +19,9 @@
 #' @return Function returns the cross object with updated phenotypes.
 #' @examples 
 #' data(fake.bc)
-#' tgCoords <- fake.bc$pheno[,1:2]
-#' colnames(tgCoords) <- c("PC1","PC2")
-#' fake.bc <- update.cross(fake.bc, tgCoords, phen2keep=c("Sex","age"), 
-#' phen2update=grep("PC",colnames(tgCoords)))
+#' tgCoords <- data.frame(1:nind(fake.bc), rnorm(nind(fake.bc)), rnorm(nind(fake.bc)))
+#' colnames(tgCoords) <- c('Id', 'ProcCoord1','ProcCoord2')
+#' fake.bc <- update.cross(fake.bc, new.pheno=tgCoords, phen2keep=c("sex","age"), phen2update=colnames(tgCoords)[grep("ProcCoord",colnames(tgCoords))])
 
 update.cross <- function(cross, new.pheno = NULL, phen2keep = NULL, phen2update = NULL, 
                          id.geno = NULL, na.rm = FALSE, ...) {
@@ -53,8 +46,9 @@ update.cross <- function(cross, new.pheno = NULL, phen2keep = NULL, phen2update 
         cross$pheno <- data.frame(ID = ID)
     } else{  
         cross$pheno <- data.frame(ID = ID, cross$pheno[,idx])
-        colnames(cross$pheno) <- c("ID",phen2keep)
+        colnames(cross$pheno) <- c("ID", phen2keep)
     }
+    clnms <- colnames(cross$pheno)
     #--------------------------------------------------------
     # 2.- now update the phenotypes	
     if (!is.null(new.pheno)) {
@@ -65,10 +59,10 @@ update.cross <- function(cross, new.pheno = NULL, phen2keep = NULL, phen2update 
         }
         new.pheno <- new.pheno[id.geno, ,drop = FALSE]
         if (!is.null(phen2update)) {
-            new.pheno <- new.pheno[, colnames(new.pheno)%in%phen2update]
+            new.pheno <- new.pheno[, colnames(new.pheno)%in%phen2update, drop = FALSE]
         }
         new.pheno <- as.data.frame(new.pheno)
-        clnms <- c(colnames(cross$pheno), colnames(new.pheno))
+        clnms <- c(clnms, colnames(new.pheno))
         cross$pheno <- data.frame(cross$pheno, new.pheno)
     }
     #--------------------------------------------------------
@@ -97,17 +91,13 @@ update.cross <- function(cross, new.pheno = NULL, phen2keep = NULL, phen2update 
     class(cross) <- c(class(cross),"shape")
     return(cross)
 }
-#' Get genotypes in a cross at qtl positions
-#' 
-#' A function to get genotypes in a cross 
-#' 
-#' Function takes a cross object and summary.scanone object, matches cross$pheno$id to 
-#' the id column of the new phenotypes. Matching id.geno may be provide as an optional input parameter.
-#' Additional covariates may be provided as supplementary arguments. Their ordering must match to the new phenotypes.       
+#' @title getGeno
+#' @description Get genotypes in a cross at qtl positions 
+#' @details Function takes a cross object and a data.frame with 'chr' and 'pos' and returns genotype probabilities at the closest position in the genetic map.       
 #' 
 #' @param cross A cross object containing genotypes and some phenotypes
 #' @param Q A data.frame containing chr and pos (similar to the output of summary.scanone)
-#' @param add.only An optional argument (Default: FALSE). TRUE force the output to the probability of the number of B alleles in F2
+#' @param add.only An optional argument (Default: FALSE). If f2 cross, add.only=TRUE forces the output to be the expected number of B alleles (pure additive model) 
 #' @export
 #' @keywords utilities
 #' @author Nicolas Navarro
@@ -115,14 +105,14 @@ update.cross <- function(cross, new.pheno = NULL, phen2keep = NULL, phen2update 
 #' @examples 
 #' data(fake.bc)
 #' fake.bc <- calc.genoprob(fake.bc)
-#' Q <- data.frame(chr=1,pos=26)
+#' Q <- data.frame(chr=1, pos=26)
 #' geno <- getGeno(fake.bc, Q)
 
 getGeno <- function(cross, Q, add.only=FALSE){
     if (!any(class(cross)=="cross")) 
         stop("cross must be a R/qtl cross object.")
-    if (!any(class(cross)%in%c("bc","f2"))) 
-        stop("this method is implemented only for bc or f2.") 
+    if (!any(class(cross)%in%c("bc","f2", "happy"))) 
+        stop("this method is implemented only for bc, f2 or happy.") 
     if (!any(class(Q)=="data.frame") || !any(colnames(Q)%in%c("chr","pos"))) 
         stop("Q must be a data.frame with at least a Q$chr and Q$pos columns.")
     if (!("prob"%in%names(cross$geno[[1]]))) 
@@ -135,30 +125,24 @@ getGeno <- function(cross, Q, add.only=FALSE){
     geno <- NULL
     for (q in 1:n.qtl){
         tmp <- subset(cross, chr = Q$chr[q])
-        pr <- tmp$geno[[1]]$prob
-        n.gen[q] <- dim(pr)[3]
-        map <- attr(pr, "map")
+        map <- attr(tmp$geno[[1]]$prob, "map")
         q1 <- which.min(abs(map - Q$pos[q]))
-        if (class(cross)[1]=="bc") {
-            pr <- pr[, , -dim(pr)[3], drop = TRUE]
+        pr <- tmp$geno[[1]]$prob[, q1, , drop = TRUE]
+        n.gen[q] <- dim(pr)[2]
+        if (class(cross)[1]=="bc" || ((class(cross)[1]=="f2" & !add.only))) {
+            pr <- pr[, -dim(pr)[2]]
+            n.gen[q] <- n.gen[q] - 1
         } else {
             if(class(cross)[1]=="f2" & add.only) {
-                pr <- pr[, , 2] + 2*pr[, , 3]  
-            } else {
-                pr <- pr[, , -dim(pr)[3], drop = TRUE]
+                pr <- pr[, 2] + 2*pr[, 3] 
+                n.gen[q] <- 1
             }	
-        }
-        if (is.na(dim(pr)[3])) {
-            geno <- cbind(geno,pr[,q1])
-        } else {
-            geno <- cbind(geno,pr[,q1,1:(n.gen[q]-1)])
-        }
+        } # we don't remove the last one for happy (handle by QR anyway)
+        geno <- cbind(geno,pr)
     }
     gen <- NULL
-    if (class(cross)[1] == "f2" & add.only)
-        n.gen <- n.gen - 1
     for (q in 1:n.qtl) 
-        gen <- c(gen, paste(paste("q",q,sep=""), 1:(n.gen[q]-1), sep="."))
+        gen <- c(gen, paste(paste("q",q,sep=""), 1:n.gen[q], sep="."))
     colnames(geno) <- gen	
     geno <- as.data.frame(geno)
     return(geno)

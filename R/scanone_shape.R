@@ -1,13 +1,6 @@
-####################################### 
-# shapeQTL mapping experiment with R
-#
-# Nicolas Navarro - 2013-2014
-########################################  
-#' Run one-dimensional genomescan 
-#' 
-#' A function to run QTL mapping on multivariate phenotypes 
-#' 
-#' Function takes a modified cross object with an additional class shape 
+#' @title scanoneShape
+#' @description Runs genome scan on multivariate phenotypes with possible covariates
+#' @details Function takes a modified cross object with an additional class shape 
 #' obtained from \code{\link{update.cross}}.
 #' Additional covariates may be provided as supplementary arguments. Ordering of 
 #' observations in those additional covariates must match the new phenotypes.       
@@ -25,18 +18,25 @@
 #' @param perm.Xsp - KEEP IT DEFAULT, not use so far
 #' @param perm.strata - KEEP IT DEFAULT, not use so far
 #' @param n.cluster Number of clusters for parallelization of permutations
-#' @param test Multivariate test statistics: \"Pillai\", \"Hotelling.Lawley\",
+#' @param test Multivariate test statistics: \'Pillai\', 'Hotelling.Lawley',
 #' \"Lik.ratio\", \"GoodallF\". Allows partial matching.
 #' @param formula Provides formula for the null model. Optional.
 #' @export
 #' @seealso  \code{\link{scanone}}
-#' @keywords qtl, shape
+#' @keywords analysis
 #' @author Nicolas Navarro
-#' @return Function returns one dimensional scan similar to the R/qtl \code{\link{scanone}} function.
+#' @return Function returns a data.frame similar to the R/qtl \code{\link{scanone}} function
+#' with chromosome and cM positions in the two firsts columns and the $log_{10}$ of the p-value
+#' for the multivariate phenotype. In the case of f2, there are three columns: full, purely additive and dominance models.
 #' @examples 
 #' data(fake.bc)
-#' out <- scanoneShape(cross, chr = 1, pheno.col = 1:2, addcovar = getsex(cross)$sex,
+#' fake.bc <- calc.genoprob(fake.bc, step=2.5)
+#' out <- scanoneShape(fake.bc, chr = 1, pheno.col = 1:2, addcovar = getsex(cross)$sex,
 #' test = "Pillai") 
+#' plot(out)
+#' -----------
+#' Permutations
+#' perm.scan <- scanoneShape(fake.bc, pheno.col=1:2, addcovar = getsex(cross)$sex, n.perm=1000, n.cluster=2)
 scanoneShape <- function(cross, chr, pheno.col, 
                          addcovar      = NULL, 
                          intcovar      = NULL, 

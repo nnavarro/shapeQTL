@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils_shape.R
 \name{update.cross}
 \alias{update.cross}
-\title{Update phenotypes and covariates in a cross qtl object}
+\title{update.cross}
 \usage{
 \method{update}{cross}(cross, new.pheno = NULL, phen2keep = NULL,
   phen2update = NULL, id.geno = NULL, na.rm = FALSE, ...)
@@ -10,7 +10,7 @@
 \arguments{
 \item{cross}{A cross object containing genotypes and some phenotypes}
 
-\item{new.pheno}{A data.frame containing new phenotypes}
+\item{new.pheno}{An optional data.frame containing new phenotypes}
 
 \item{phen2keep}{An optional vector with names of the original phenotypes to keep}
 
@@ -26,23 +26,18 @@ should be removed from the cross}
 Function returns the cross object with updated phenotypes.
 }
 \description{
-A function to merge new phenotypes (eg tangent coordinates) in a cross read
-by read.cross.
+Update phenotypes and covariates in a cross qtl object. New phenotypes (for ex. tangent coordinates) are merged to an existing cross object obtained from \code{\link{read.cross}}
 }
 \details{
-Function takes a cross object and a dataframe with new phenotypes, matches
-cross$pheno$id to
-the id column of the new phenotypes. Matching id.geno may be provide as an
+Function takes a cross object and a dataframe with new phenotypes (tangent coordinates, PC scores,...), matches cross$pheno$ID to the id column of the new phenotypes. Matching id.geno may be provide as an
 optional input parameter.
-Additional covariates may be provided as supplementary arguments.
-Their ordering must match to the new phenotypes.
+Additional covariates may be provided as supplementary arguments but their ordering must match to the new phenotypes.
 }
 \examples{
 data(fake.bc)
-tgCoords <- fake.bc$pheno[,1:2]
-colnames(tgCoords) <- c("PC1","PC2")
-fake.bc <- update.cross(fake.bc, tgCoords, phen2keep=c("Sex","age"),
-phen2update=grep("PC",colnames(tgCoords)))
+tgCoords <- data.frame(1:nind(fake.bc), rnorm(nind(fake.bc)), rnorm(nind(fake.bc)))
+colnames(tgCoords) <- c('Id', 'ProcCoord1','ProcCoord2')
+fake.bc <- update.cross(fake.bc, new.pheno=tgCoords, phen2keep=c("sex","age"), phen2update=colnames(tgCoords)[grep("ProcCoord",colnames(tgCoords))])
 }
 \author{
 Nicolas Navarro

@@ -22,8 +22,6 @@ The function returns a multidimensional array [n.land x n.dim x n.obs]. The thir
 Convert a matrix of landmark coordinates into an array [n.land x n.dim x n.obs].
 }
 \details{
-
-
 The function converts a matrix of landmark coordinates into an array. Such arrays are common format used in other morphometrics packages (shape, geomorph, Morpho). Each row of the input matrix contains coordinates for a single specimens.
 }
 \examples{
@@ -36,4 +34,5 @@ Nicolas Navarro
 \seealso{
 \code{\link[geomorph]{arrayspecs}}
 }
+\keyword{utilities}
 

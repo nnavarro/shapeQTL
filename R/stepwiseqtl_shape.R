@@ -1,6 +1,5 @@
 #' @title stepwiseqtlShape
-#' @author Nicolas Navarro
-#' @description Runs a stepwise model search
+#' @description Runs a stepwise multiple QTL model search using penalized negative $log_{10}$ of the p-value
 #' @details The function built multiple QTL models using penalized negative $log_{10}$ of the p-value (as a multivariate analogue of the penalized LOD score of the R/qtl package). The search is limited so far to a model without interaction
 #' @param cross 
 #' @param chr
@@ -14,19 +13,28 @@
 #' @param additive.only Logical. (Defauft FALSE). 
 #'  (Not as in \code{\link[qtl]{summary.scanone}}). Here setting to TRUE may be used 
 #'  with f2 cross to force a diplotype model (pure additive)
-#' @param scan.pairs Logical. (Default FALSE) #keep default. Not use so far
+#' @param scan.pairs Logical. (Default FALSE) #keep it default. Not use so far
 #' @param penalties Genomewide threshold 
 #' @param keeplodprofile Logical (Default TRUE)
 #' @param keeptrace Logical (Default FALSE) 
 #' @param verbose Logical (Default FALSE)
 #' @param test Multivariate statistics (Default "Pillai". Others are : "Hotelling.Lawley",
-#'  "Lik.ratio".)
+#'  "Lik.ratio", "Goodall")
 #' @references Broman and Sen 2009. A guide to QTL mapping with R/qtl
-#' @return The function returns .
-#' @seealso  \code{\link[qtl]{stepwiseqtl}} 
-#' @examples
-#' ?stepwiseqtlShape
 #' @export
+#' @seealso  \code{\link[qtl]{stepwiseqtl}} 
+#' @keywords analysis
+#' @author Nicolas Navarro
+#' @return The function returns a qtl object.
+#' @examples
+#' data(fake.bc)
+#' fake.bc <- calc.genoprob(fake.bc, step=2.5)
+#' fake.bc <- update.cross(fake.bc, phen2keep = names(fake.bc$pheno)) #Just update the class of fake.bc
+#' covar <- fake.bc$pheno[, c('sex','age')]
+#' out1 <- scanoneShape(fake.bc, pheno.col = 1:2, addcovar = covar,
+#' test = "Pillai")
+#' Q <- max(out1)
+#' outStep <- stepwiseqtlShape(fake.bc, pheno.col = 1:2, qtl = Q, max.qtl = 3, covar = covar, penalties=2.5, verbose = TRUE) 
 stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 10,
                              covar = NULL, 
                              refine.locations = TRUE, 
@@ -46,7 +54,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         stop("you should run first 'scanoneShape' with permutations to get penalties")
     
     if (missing(formula)) {
-        formula <- as.formula("pheno ~", paste(names(covar), collapse = " + "))
+        formula <- as.formula(paste("pheno ~", paste(names(covar), collapse = " + ")))
     } else if (is.character(formula)) {
         formula <- as.formula(formula)
     }
@@ -254,6 +262,12 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         curbest <- lodprofile.qtl(curbest, cross = cross, fm.red = fm.red, pheno = pheno,
                                   covar = covar, chr = NULL, add.only = additive.only,
                                   test = test)
+        if (!keeplodprofile){
+            # return only summary
+            curbest <- data.frame(chr=tmp$chr,pos=tmp$pos, lod=curbest$lod, row.names = tmp$name)
+            class(curbest) <- c("summary.stepwiseqtl","data.frame")
+            attr(curbest, which="pLOD") <- curbestplod
+        }
     }
     
     if(keeptrace)
@@ -299,33 +313,39 @@ leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, SSCP
 drop1qtl <- function(cross,qtls,formula.red,pheno,covar,threshold,add.only=FALSE,test="Pillai",verbose=FALSE){
     cl.qtl <- class(qtls)
     n.qtl <- nrow(qtls)
-    n.ind <- nrow(pheno)
-    fm.red <- paste(deparse(formula.red[-2]), collapse = "")
-    # get genotypes for all qtls
-    geno <- getGeno(cross, Q = qtls, add.only = add.only)
-    # fit the full model
-    gen <- colnames(geno)
-    form <- as.formula(paste(fm.red, paste(gen, collapse = "+"), sep="+"))
-    x <- model.matrix(form, data = cbind(covar,geno))
-    mod.full <- .Call(C_CdqrlsShapeQTL, x = x, y = pheno, tol = 1e-07, chk = FALSE)
-    SSCPerr.full <- crossprod(mod.full$residuals)
-    rank.E <- qr(SSCPerr.full)$rank
+    if (n.qtl < 2) {
+        warning("Less 1 QTL in your model! drop analysis not done")
+        partial.logp <- qtls$lod
+        names(partial.logp) <- rownames(qtls)
+    } else {
+        n.ind <- nrow(pheno)
+        fm.red <- paste(deparse(formula.red[-2]), collapse = "")
+        # get genotypes for all qtls
+        geno <- getGeno(cross, Q = qtls, add.only = add.only)
+        # fit the full model
+        gen <- colnames(geno)
+        form <- as.formula(paste(fm.red, paste(gen, collapse = "+"), sep="+"))
+        x <- model.matrix(form, data = cbind(covar,geno))
+        mod.full <- .Call(C_CdqrlsShapeQTL, x = x, y = pheno, tol = 1e-07, chk = FALSE)
+        SSCPerr.full <- crossprod(mod.full$residuals)
+        rank.E <- qr(SSCPerr.full)$rank
     
-    # fit the full minus 1 QTL to get SSII p-value
-    partial.logp <- rep(0, n.qtl)
-    for (q in 1:n.qtl){
-        idx <- grep(paste("q",q,".",sep=""), gen, fixed=TRUE)
-        tmp.x <- model.matrix(as.formula(paste(fm.red, paste(gen[-idx], collapse="+"), sep="+")), data=cbind(covar,geno))
-        mod.red <- .Call(C_CdqrlsShapeQTL, x = tmp.x, y = pheno, tol = 1e-07, chk = FALSE)
-        dfeff <- mod.full$rank - mod.red$rank
-        dferr <- n.ind - mod.full$rank	
-        SSCPerr.red <- crossprod(mod.red$residuals)	
+        # fit the full minus 1 QTL to get SSII p-value
+        partial.logp <- rep(0, n.qtl)
+        for (q in 1:n.qtl){
+            idx <- grep(paste("q",q,".",sep=""), gen, fixed=TRUE)
+            tmp.x <- model.matrix(as.formula(paste(fm.red, paste(gen[-idx], collapse="+"), sep="+")), data=cbind(covar,geno))
+            mod.red <- .Call(C_CdqrlsShapeQTL, x = tmp.x, y = pheno, tol = 1e-07, chk = FALSE)
+            dfeff <- mod.full$rank - mod.red$rank
+            dferr <- n.ind - mod.full$rank	
+            SSCPerr.red <- crossprod(mod.red$residuals)	
         #partial F-test: Full model vs Reduced model
-        SSCPfull <- SSCPerr.red - SSCPerr.full
-        if (pmatch(test,"Pillai",nomatch=0)) partial.logp[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
-        if (pmatch(test,"Lik.ratio",nomatch=0)) partial.logp[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
-        if (pmatch(test,"Hotelling.Lawley",nomatch=0)) partial.logp[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
-        if (pmatch(test,"GoodallF",nomatch=0)) lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
+            SSCPfull <- SSCPerr.red - SSCPerr.full
+            if (pmatch(test,"Pillai",nomatch=0)) partial.logp[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+            if (pmatch(test,"Lik.ratio",nomatch=0)) partial.logp[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
+            if (pmatch(test,"Hotelling.Lawley",nomatch=0)) partial.logp[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+            if (pmatch(test,"GoodallF",nomatch=0)) lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
+        }
     }
     names(partial.logp) <- rownames(qtls)
     if (any(partial.logp<threshold)) {
@@ -374,16 +394,27 @@ lodprofile.qtl<- function (qtls, cross, fm.red, pheno, covar, chr = NULL, add.on
     n.qtls <- nrow(qtls)
     lastOut <- NULL
     newpos <- qtls 
-    for (q in 1:n.qtls) {
-        geno <- as.matrix(getGeno(cross, Q = qtls[-q, ], add.only))
-        tmp.cross <- subset(cross, chr = qtls[q, "chr"])
+    if (n.qtls == 1)  {
+        tmp.cross <- subset(cross, chr = qtls$chr)
         tmp <- mvGenomScan(tmp.cross, pheno = pheno, mod.red = fm.red, 
-                           covar = covar, back.qtl = geno, test = test)
+                           covar = covar, back.qtl = NULL, test = test)
         if (ncol(tmp) > 3) 
             tmp <- tmp[, 1:3]
         tmp[is.na(tmp[, 3]), 3] <- 0
-        lastOut[[q]] <- tmp
-        newpos[q, ] <- max(tmp)
+        lastOut[[1]] <- tmp
+        newpos[1, ] <- max(tmp)
+    } else {    
+        for (q in 1:n.qtls) {
+            geno <- as.matrix(getGeno(cross, Q = qtls[-q, ], add.only))
+            tmp.cross <- subset(cross, chr = qtls[q, "chr"])
+            tmp <- mvGenomScan(tmp.cross, pheno = pheno, mod.red = fm.red, 
+                           covar = covar, back.qtl = geno, test = test)
+            if (ncol(tmp) > 3) 
+            tmp <- tmp[, 1:3]
+            tmp[is.na(tmp[, 3]), 3] <- 0
+            lastOut[[q]] <- tmp
+            newpos[q, ] <- max(tmp)
+        }
     }
     qtls <- newpos
     qtls.name <- find.pseudomarker(cross, qtls$chr, qtls$pos, where = "prob")

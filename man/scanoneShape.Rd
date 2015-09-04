@@ -2,7 +2,7 @@
 % Please edit documentation in R/scanone_shape.R
 \name{scanoneShape}
 \alias{scanoneShape}
-\title{Run one-dimensional genomescan}
+\title{scanoneShape}
 \usage{
 scanoneShape(cross, chr, pheno.col, addcovar = NULL, intcovar = NULL,
   n.perm, perm.Xsp = FALSE, perm.strata = NULL, n.cluster = 1,
@@ -31,16 +31,18 @@ They are there for direct}
 
 \item{n.cluster}{Number of clusters for parallelization of permutations}
 
-\item{test}{Multivariate test statistics: \"Pillai\", \"Hotelling.Lawley\",
+\item{test}{Multivariate test statistics: \'Pillai\', 'Hotelling.Lawley',
 \"Lik.ratio\", \"GoodallF\". Allows partial matching.}
 
 \item{formula}{Provides formula for the null model. Optional.}
 }
 \value{
-Function returns one dimensional scan similar to the R/qtl \code{\link{scanone}} function.
+Function returns a data.frame similar to the R/qtl \code{\link{scanone}} function
+with chromosome and cM positions in the two firsts columns and the $log_{10}$ of the p-value
+for the multivariate phenotype. In the case of f2, there are three columns: full, purely additive and dominance models.
 }
 \description{
-A function to run QTL mapping on multivariate phenotypes
+Runs genome scan on multivariate phenotypes with possible covariates
 }
 \details{
 Function takes a modified cross object with an additional class shape
@@ -50,8 +52,13 @@ observations in those additional covariates must match the new phenotypes.
 }
 \examples{
 data(fake.bc)
-out <- scanoneShape(cross, chr = 1, pheno.col = 1:2, addcovar = getsex(cross)$sex,
+fake.bc <- calc.genoprob(fake.bc, step=2.5)
+out <- scanoneShape(fake.bc, chr = 1, pheno.col = 1:2, addcovar = getsex(cross)$sex,
 test = "Pillai")
+plot(out)
+-----------
+Permutations
+perm.scan <- scanoneShape(fake.bc, pheno.col=1:2, addcovar = getsex(cross)$sex, n.perm=1000, n.cluster=2)
 }
 \author{
 Nicolas Navarro
@@ -59,6 +66,5 @@ Nicolas Navarro
 \seealso{
 \code{\link{scanone}}
 }
-\keyword{qtl,}
-\keyword{shape}
+\keyword{analysis}
 

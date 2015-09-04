@@ -5,30 +5,49 @@
 \title{fitqtlShape}
 \usage{
 fitqtlShape(cross, pheno.col, qtl, covar = NULL, formula, method = "hk",
-  model = "mvnorm", dropone = FALSE, get.ests = TRUE, run.checks = TRUE,
   forceXcovar = FALSE, pca = NULL)
 }
 \arguments{
-\item{cross}{A cross object.}
+\item{cross}{A cross object containing genotypes and some phenotypes}
+
+\item{pheno.col}{A numerical vector with column indicies in cross$pheno of
+the phenotypes to map or a vector containing their names.}
+
+\item{qtl}{An}
+
+\item{covar}{An optional data.frame of covariates}
+
+\item{formula}{A formula ccc}
+
+\item{method}{Indicates whether to use multiple imputation or Haley-Knott regression. Only 'hk' is tested so far.}
+
+\item{forceXcovar}{Not use so far. Keep it default.}
+
+\item{pca}{An optional prcomp object from \code{\link{prcomp}} function use to get PC scores or just the corresponding eigenvector matrix. Use to return the effect in their original coordinates (PCscores back to tgCoords)}
 }
 \value{
-The function returns the qtl shape effects, eventually projected back in the tangent space.
+Function returns qtl effects
 }
 \description{
-fitqtlShape is a function that allows estimating qtl effect.
+Estimates qtl effect
 }
-\note{
-If cross is ....
+\details{
+Function takes a cross object
 }
 \examples{
-eff <- fitqtlShape(cross, pheno.col=1:2, qtl)
+data(fake.bc)
+fake.bc <- update.cross(fake.bc, phen2keep=colnames(fake.bc$pheno))
+fake.bc <- calc.genoprob(fake.bc)
+qtl <- makeqtl(fake.bc, chr = c(1, 8, 13), pos=c(26, 56, 28), what="prob")
+eff <- fitqtlShape(fake.bc, pheno.col=grep('pheno',colnames(fake.bc$pheno)), qtl)
+# Using PC scores
+pca <- prcomp(fake.bc$pheno[,c('pheno1','pheno2')])
+PCs <- data.frame(Id=1:nrow(pca$x), pca$x)
+fake.bc <- update.cross(fake.bc, new.pheno=PCs)
+eff <- fitqtlShape(fake.bc, pheno.col=grep("PC",colnames(fake.bc$pheno)), qtl, pca=pca)
 }
 \author{
 Nicolas Navarro
 }
-\references{
-xxxx
-}
-\keyword{effect}
-\keyword{shape}
+\keyword{utilities}
 
