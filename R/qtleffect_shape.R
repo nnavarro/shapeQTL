@@ -24,7 +24,7 @@
 #' # Using PC scores
 #' pca <- prcomp(fake.bc$pheno[,c('pheno1','pheno2')])
 #' PCs <- data.frame(Id=1:nrow(pca$x), pca$x)
-#' fake.bc <- update.cross(fake.bc, new.pheno=PCs)
+#' fake.bc <- update(fake.bc, new.pheno=PCs)
 #' eff <- fitqtlShape(fake.bc, pheno.col=grep("PC",colnames(fake.bc$pheno)), qtl, pca=pca)
 
 fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula, 
@@ -41,8 +41,8 @@ fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula,
     if (!any(class(qtl)%in%c("qtl","summary.scanone", "summary.stepwiseqtl"))) 
         stop("qtl argument should have class \"qtl\" or \"summary.scanone\" or \"summary.stepwiseqtl\".")
     if (any(class(qtl)%in%c("summary.scanone", "summary.stepwiseqtl"))) {
-        qtls.name <- find.pseudomarker(cross, chr = qtls$chr, pos = qtls$pos, where = "prob")
-        Q <- makeqtl(cross, qtls$chr, qtls$pos, qtls.name, what = "prob")
+        qtl.name <- find.pseudomarker(cross, chr = qtl$chr, pos = qtl$pos, where = "prob")
+        Q <- makeqtl(cross, qtl$chr, qtl$pos, qtl.name, what = "prob")
     } else {
         Q <- qtl
     }

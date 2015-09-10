@@ -43,7 +43,7 @@ eff <- fitqtlShape(fake.bc, pheno.col=grep('pheno',colnames(fake.bc$pheno)), qtl
 # Using PC scores
 pca <- prcomp(fake.bc$pheno[,c('pheno1','pheno2')])
 PCs <- data.frame(Id=1:nrow(pca$x), pca$x)
-fake.bc <- update.cross(fake.bc, new.pheno=PCs)
+fake.bc <- update(fake.bc, new.pheno=PCs)
 eff <- fitqtlShape(fake.bc, pheno.col=grep("PC",colnames(fake.bc$pheno)), qtl, pca=pca)
 }
 \author{
