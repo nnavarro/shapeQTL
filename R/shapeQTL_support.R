@@ -22,14 +22,6 @@
 #' 
 NULL
 
-#' Landmark data from simulated drosophila wings
-#'
-#' @name wings
-#' @docType data
-#' @author Nicolas Navarro
-#' @keywords datasets
-NULL
-
 #' Landmark data from a simulated BC of drosophila wings
 #'
 #' @name wings.bc

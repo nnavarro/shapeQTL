@@ -229,7 +229,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
             }
         }
         
-        attr(qtls, "pLOD") <- curplod
+        attr(qtl, "pLOD") <- curplod
         if(curplod > curbestplod) {
             if(verbose){
                 cat("** new best ** (pLOD increased by ", round(curplod - curbestplod, 4),
