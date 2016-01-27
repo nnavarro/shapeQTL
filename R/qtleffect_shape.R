@@ -97,59 +97,78 @@ fitqtlShape <- function(cross, pheno.col, qtl, covar=NULL, formula,
 #' @param qtl A qtl effect obtained from fitqtlShape
 #' @param shape A optional matrix of shape variables [n.ind n.pheno]
 #' @param geno A optional matrix of genotype data [n.ind n.qtl]
+#' @param doPlot Logical (default FALSE) to make a plot of the projection scores versus the genotypes
+#' @param vcv A list of n.qtl with the [n.pheno n.pheno] dispersion matrix for each qtl
 #' @return The function returns the effect size of qtls.
-#' @note If the shape matrix and/or the genotypes are provided, then the function returns a dataframe with the ES standardized by genotype variance and the percentage explained of variance of the projection scores. 
+#' @note If the shape matrix and/or the genotypes are provided, then the function returns a dataframe with the ES as the percentage explained of variance of the projection scores. 
 #' @author Nicolas Navarro
 #' @examples 
 #' ES <- effectsizeShape(qtl, shape, geno = as.matrix(getGeno(cross, qtl)))
 #' @export
-effectsizeShape <- function(qtl, shape=NULL, geno=NULL, ...){
+effectsizeShape <- function(qtl, shape=NULL, geno=NULL, doPlot=FALSE, vcv=NULL, ...){
     if (!is.matrix(qtl)) 
         stop("qtl must be a matrix")
     if (!is.null(shape) && class(shape) != "matrix") 
         stop("shape must be a matrix")
-
+    
     qtl <- qtl[!(rownames(qtl)%in%"Intercept"), , drop = FALSE]
     ES <- sqrt(rowSums(qtl^2))
     if (!is.null(shape)) {
-        SS <- SSprojScres.model <- SSmod <- rep(NA,nrow(qtl))
+        SS <- SSprojScres.model <- SSmod <- perc.SSprojScres.explained <- rep(NA,nrow(qtl))
+        names(SS) <- names(ES)
+        Z <- scale(shape, scale=FALSE)
+        ZZ <- crossprod(Z)
+        # total Sum of Squares
+        TSS <- sum(diag(ZZ))
+        # projected TSS
+        SS <- apply(qtl, 1, FUN = projectBetaVCV, SSCP=ZZ)
         if (!is.null(geno)) {
-            pD.std <- ES^2*diag(cov(geno))/sum(diag(cov(shape)))
+            Reg.proj <- apply(qtl, 1, FUN = projectBetaZ, Z=shape)
+            mod <- lm(Reg.proj ~ geno) # estimated multivariate fitted effects
+            SSmod <- sapply(1:nrow(qtl), ssmod1, Y = Reg.proj, yhat = mod$fitted.values, g = geno)
+        } else if(!is.null(vcv) && is.list(vcv)) {
+            if (length(vcv) != nrow(qtl)) stop("length of vcv is different of the number of qtls")
+            SSmod <- sapply(1:nrow(qtl), projectBetaVCVlist, qtl, vcv)
         }
-        for (i in 1:nrow(qtl)){
-            Reg.proj <- shape %*% qtl[i, ] %*% sqrt(solve(t(qtl[i, ]) %*% qtl[i,]))
-            SS[i] <- crossprod(scale(Reg.proj, scale = FALSE))
-            if (!is.null(geno)) {
-                xx <- as.matrix(geno[, -i])
-                mod.red <- lm(Reg.proj ~ xx)
-                mod <- lm(Reg.proj ~ geno)
-                SSmod[i] <- crossprod(mod.red$residuals) - crossprod(mod$residuals)
-                
-                plot(Reg.proj ~ geno[,i], xlab = expression(Pr(g[i]==j~"|"~bold(M)[i])),
-                     ylab = "proj.Scores", main = rownames(qtl)[i], ...) 
-                abline(lm(Reg.proj ~ geno[,i]), ...)
-                SSprojScres.resids <- lm(Reg.proj ~ geno[,i])$residuals
-                SSprojScres.model[i] <-  SS[i] - crossprod(SSprojScres.resids)
-                
-            }    
-        }
-        SST <- sum(diag(crossprod(scale(shape, scale=FALSE))))
-        perc.SS <- SSprojScres.model / SST * 100
-        # this is a equivalent to the % SS predicted
-        # predSS <- sum(diag(SSCPfull)) / sum(diag(crossprod(scale(shape, scale=F)))) *100
         
-        # This is the SS of the projection scores given the total amount of variation 
+        # This is the ammount of variance explained in the direction of the qtl effect
+        perc.SSprojScres.explained <- SSmod / SS * 100
+        # SS of the projection scores given the total amount of variation 
         # How much variance there are in the direction of the qtl effect
-        perc.SSprojScres <- SS / SST *100
-        # This is the ammount of variance explained in that direction 
-        perc.SSprojScres.explained <- SSprojScres.model / SS * 100
-        names(SS) <- names(perc.SS) <- names(ES)
-        pD <- ES
-        perc.SST <- SSmod / SST * 100
-        ES <- data.frame(pD, pD.std, perc.SS, perc.SSprojScres, perc.SSprojScres.explained, perc.SST)
+        perc.SSprojScres <- SS / TSS *100
+        perc.SST <- SSmod / TSS * 100
+        ES <- data.frame(pD=ES, perc.SSprojScres, perc.SSprojScres.explained, perc.SST)
+        attr(ES, which="TSS") <- TSS
+        # Plotting of regression projection scores
+        if (doPlot && !is.null(geno)) {
+            for (i in 1:nrow(qtl))
+                plot(Reg.proj[,i] ~ geno[,i], xlab = expression(Pr(g[i]==j~"|"~bold(M)[i])),
+                     ylab = "proj.Scores", main = colnames(X)[i], ...) 
+            abline(lm(Reg.proj[,i] ~ geno[,i]), ...)
+        }
     }
     return(ES)    
-}  
+}
+# Utility function
+projectBetaZ <- function(beta, Z) {
+    beta <- matrix(beta, 1, length(beta)) #require to get 1 x k vector
+    regProj <- Z %*% t(beta) * 1/sqrt(sum(beta^2))
+}
+projectBetaVCV <- function(beta, SSCP) {
+    beta <- matrix(beta, 1, length(beta))  #require to get 1 x k vector
+    SS <- 1/sum(beta^2) * (beta %*% SSCP %*% t(beta))
+}
+projectBetaVCVlist <- function(i, beta, SSCP) {
+    b <- beta[i, , drop=FALSE]
+    SS <- 1/sum(b^2) * (b %*% SSCP[[i]] %*% t(b))
+}
+ssmod1 <- function(i, Y, yhat, g) {
+    xx <- as.matrix(g[, -i, drop = FALSE])
+    if (ncol(xx) < 1) mod.red <- lm(Y[,i] ~ 1)
+    else mod.red <- lm(Y[,i] ~ xx)
+    SSmod <- crossprod(yhat[,i] - mod.red$fitted.values)
+    return(SSmod)
+}
 
 #' @title 2D Lollipop plot of qtl effect
 #' 

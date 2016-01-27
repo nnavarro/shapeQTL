@@ -16,7 +16,8 @@
 #' @references Knott SA, Haley CS (2000). Multitrait least squares for quantitative trait loci detection. Genetics 156: 899–911.
 #' @references Klingenberg CP, Leamy LJ, Routman EJ, Cheverud JM (2001). Genetic architecture of mandible shape in mice: effects of quantitative trait loci analyzed by geometric morphometrics. Genetics 157: 785–802.
 #' @references Klingenberg CP (2010). Evolution and development of shape: integrating quantitative approaches. Nature Reviews Genetics 11: 623–635.
-#' @references Maga AM, Navarro N, Cunningham ML, Cox TC (2015). Quantitative trait loci affecting the 3D skull shape and size in mouse and prioritization of candidate genes in-silico. Front Physiol 6: 1–13. 
+#' @references Maga AM, Navarro N, Cunningham ML, Cox TC (2015). Quantitative trait loci affecting the 3D skull shape and size in mouse and prioritization of candidate genes in-silico. Front Physiol 6: 1–13.
+#' @references Navarro N, Maga AM (2016). Does 3D phenotyping yield substantial insights in the genetics of the mouse mandible shape? G3.  
 #' @examples XXXX
 #' 
 #' 
