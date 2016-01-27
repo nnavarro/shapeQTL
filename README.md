@@ -28,5 +28,5 @@ Then install R/shapeQTL
 
 ```r
 	require(devtools)
-	install_github("nnavarro/shapeQTL", ref=MASTER)
+	install_github("nnavarro/shapeQTL")
 ```
