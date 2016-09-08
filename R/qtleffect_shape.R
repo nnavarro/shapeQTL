@@ -143,7 +143,7 @@ effectsizeShape <- function(qtl, shape=NULL, geno=NULL, doPlot=FALSE, vcv=NULL, 
         if (doPlot && !is.null(geno)) {
             for (i in 1:nrow(qtl))
                 plot(Reg.proj[,i] ~ geno[,i], xlab = expression(Pr(g[i]==j~"|"~bold(M)[i])),
-                     ylab = "proj.Scores", main = colnames(X)[i], ...) 
+                     ylab = "proj.Scores", main = colnames(geno)[i], ...) 
             abline(lm(Reg.proj[,i] ~ geno[,i]), ...)
         }
     }
