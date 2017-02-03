@@ -306,7 +306,7 @@ leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, SSCP
     n.ind <- nrow(pheno)
     fm.red <- paste(deparse(formula.red[-2]), collapse = "")
     #get genotypes for all qtls
-    geno <- getGeno(cross, Q = qtls, add.only = FALSE)
+    geno <- getGeno(cross, Q = qtls, add.only = add.only)
     #fit the full model
     gen <- colnames(geno)
     tmp.dat <- cbind(covar, geno)
@@ -324,10 +324,14 @@ leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, SSCP
         rank.E <- qr(SSCPerr.full)$rank
         #partial F-test: Full model vs Reduced model
         SSCPfull <- SSCPerr.red - SSCPerr.full
-        if (pmatch(test,"Pillai",nomatch=0)) lod[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
-        if (pmatch(test,"Lik.ratio",nomatch=0)) lod[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
-        if (pmatch(test,"Hotelling.Lawley",nomatch=0)) lod[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
-        if (pmatch(test,"GoodallF",nomatch=0)) lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
+        if (pmatch(test,"Pillai", nomatch=0)) 
+            lod[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+        if (pmatch(test,"Lik.ratio", nomatch=0)) 
+            lod[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
+        if (pmatch(test,"Hotelling.Lawley", nomatch=0)) 
+            lod[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+        if (pmatch(test,"GoodallF", nomatch=0)) 
+            lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
     }
     
     qtls <- data.frame(qtls$chr, qtls$pos, lod)
