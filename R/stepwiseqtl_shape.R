@@ -388,9 +388,11 @@ drop1qtl <- function(cross,qtls,formula.red,pheno,covar,threshold,add.only=FALSE
         }
         qtls <- qtls[partial.logp > threshold, ]
         cat("some qtls have been drop!\n updating...\n")
-        qtls <- drop1qtl(cross, qtls, formula.red, pheno,covar,threshold,add.only)
-    }
-    else qtls <- cbind(qtls, partial.logp)
+        qtls <- drop1qtl(cross, qtls = qtls, formula.red = formula.red, 
+                         pheno = pheno, covar = covar,threshold = threshold, 
+                         add.only = add.only, test = test)
+    } else qtls <- cbind(qtls, partial.logp)
+    
     class(qtls) <- c("summary.drop1qtl","data.frame")
     return(qtls)
 }
