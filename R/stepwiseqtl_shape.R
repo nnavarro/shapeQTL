@@ -220,12 +220,14 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         n.qtls <- n.qtls - 1
         tmp <- leave1qtl(cross, qtls = qtl, pheno = pheno, covar = covar, 
                          formula.red = fm.red, mod.red.rank = mod.red$rank, 
-                         SSCPerr.red = SSCPerr.red,add.only = additive.only, test = test) 
+                         SSCPerr.red = SSCPerr.red, add.only = additive.only, test = test) 
         # look for best model (the one where the removed qtl has minimal effect)
         tmp$lod <- tmp$lod - penalties * n.qtls
         dropQ <- which.max(tmp$lod) 
         curplod <- max(tmp$lod)
         qtl <- qtl[-dropQ, ] 
+        if (verbose)
+            cat("pLOD = ", curplod, "\n")
         #-------------------------------------------------------    
         # 3.1 Refining qtl positions
         # Re-order qtl (should not make any difference; they should be already ordered) 
@@ -300,7 +302,8 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
     
     return(curbest)
 }
-leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, SSCPerr.red, add.only = FALSE, test = "Pillai", verbose = FALSE){
+leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, 
+                      SSCPerr.red, add.only = FALSE, test = "Pillai", verbose = FALSE) {
     # Test a model with one-QTL out versus the null model
     n.qtl <- nrow(qtls)
     n.ind <- nrow(pheno)
@@ -331,7 +334,8 @@ leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, SSCP
         if (pmatch(test,"Hotelling.Lawley", nomatch=0)) 
             lod[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
         if (pmatch(test,"GoodallF", nomatch=0)) 
-            lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
+            lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, 
+                                    n.ind - mod.red.rank, rank.E)
     }
     
     qtls <- data.frame(qtls$chr, qtls$pos, lod)
@@ -339,7 +343,10 @@ leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, SSCP
     
     return(qtls)
 }
-drop1qtl <- function(cross,qtls,formula.red,pheno,covar,threshold,add.only=FALSE,test="Pillai",verbose=FALSE){
+
+drop1qtl <- function(cross, qtls, formula.red, pheno, covar, threshold, 
+                     add.only=FALSE, test="Pillai", verbose=FALSE) {
+    
     cl.qtl <- class(qtls)
     n.qtl <- nrow(qtls)
     if (n.qtl < 2) {
