@@ -16,7 +16,7 @@
 #'  is checked and corrected accordingly.
 #' @param scan.pairs Logical. (Default FALSE) #keep it default. Not use so far
 #' @param penalties Genomewide threshold 
-#' @param distresh numeric (Default 0). Minimal distance, between loci already in the model
+#' @param disthresh numeric (Default 0). Minimal distance, between loci already in the model
 #' and a candidate locus, below which the candidate locus is discarded. 
 #' @param lodcolumn numeric (1 or 2). With intercross, scanone returns three lod scores (full model, additive only model, and lod for dominance), lodcolumn allows to specify on which one of the full or additive model we want do the QTL selection. 
 #' @param keeplodprofile Logical (Default TRUE)
@@ -45,7 +45,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
                              additive.only = FALSE,
                              scan.pairs = FALSE, #keep default
                              penalties,
-                             distresh = 0,
+                             disthresh = 0,
                              lodcolumn = 1,
                              keeplodprofile = TRUE,
                              keeptrace = FALSE, 
