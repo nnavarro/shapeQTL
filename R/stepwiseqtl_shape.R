@@ -370,14 +370,18 @@ drop1qtl <- function(cross,qtls,formula.red,pheno,covar,threshold,add.only=FALSE
             SSCPerr.red <- crossprod(mod.red$residuals)	
         #partial F-test: Full model vs Reduced model
             SSCPfull <- SSCPerr.red - SSCPerr.full
-            if (pmatch(test,"Pillai",nomatch=0)) partial.logp[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
-            if (pmatch(test,"Lik.ratio",nomatch=0)) partial.logp[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
-            if (pmatch(test,"Hotelling.Lawley",nomatch=0)) partial.logp[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
-            if (pmatch(test,"GoodallF",nomatch=0)) lod[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
+            if (pmatch(test,"Pillai",nomatch=0)) 
+                partial.logp[q] <- Pillai.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+            if (pmatch(test,"Lik.ratio",nomatch=0)) 
+                partial.logp[q] <- LikelihoodRatio.test(SSCPerr.full,SSCPerr.red,dfeff,dferr,rank.E)
+            if (pmatch(test,"Hotelling.Lawley",nomatch=0)) 
+                partial.logp[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
+            if (pmatch(test,"GoodallF",nomatch=0)) 
+                partial.logp[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
         }
     }
     names(partial.logp) <- rownames(qtls)
-    if (any(partial.logp<threshold)) {
+    if (any(partial.logp < threshold)) {
         if (verbose) {
             print("removed qtl")
             print(qtls[partial.logp < threshold, ])
@@ -414,7 +418,7 @@ lodprofile.qtl<- function (qtls, cross, fm.red, pheno, covar, chr = NULL, add.on
             break
         if (!length(qtls)) 
             stop("no qtl for this chromosome")
-        back.geno <- getGeno(cross, Q = back.qtl, add.only)
+        back.geno <- getGeno(cross, Q = back.qtl, add.only = add.only)
         covar <- cbind(covar, back.geno)
         # Update the formula of the reduced model
         fm.red <- as.formula(paste(paste(deparse(fm.red), collapse = ""), 
@@ -434,7 +438,7 @@ lodprofile.qtl<- function (qtls, cross, fm.red, pheno, covar, chr = NULL, add.on
         newpos[1, ] <- max(tmp)
     } else {    
         for (q in 1:n.qtls) {
-            geno <- as.matrix(getGeno(cross, Q = qtls[-q, ], add.only))
+            geno <- as.matrix(getGeno(cross, Q = qtls[-q, ], add.only = add.only))
             tmp.cross <- subset(cross, chr = qtls[q, "chr"])
             tmp <- mvGenomScan(tmp.cross, pheno = pheno, mod.red = fm.red, 
                            covar = covar, back.qtl = geno, test = test)
