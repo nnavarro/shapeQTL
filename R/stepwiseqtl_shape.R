@@ -10,11 +10,15 @@
 #' @param max.qtl
 #' @param covar
 #' @param refine.locations Logical
-#' @param additive.only Logical. (Defauft FALSE). 
-#'  (Not as in \code{\link[qtl]{summary.scanone}}). Here setting to TRUE may be used 
-#'  with f2 cross to force a diplotype model (pure additive)
+#' @param additive.only Logical. (Defauft FALSE). Setting it to TRUE may be used 
+#'  to force a diplotype model (pure additive) in an intercross (Have to bare in mind
+#'  that it is *NOT* as in \code{\link[qtl]{summary.scanone}}). Consistency with lodcolumn
+#'  is checked and corrected accordingly.
 #' @param scan.pairs Logical. (Default FALSE) #keep it default. Not use so far
 #' @param penalties Genomewide threshold 
+#' @param distresh numeric (Default 0). Minimal distance, between loci already in the model
+#' and a candidate locus, below which the candidate locus is discarded. 
+#' @param lodcolumn numeric (1 or 2). With intercross, scanone returns three lod scores (full model, additive only model, and lod for dominance), lodcolumn allows to specify on which one of the full or additive model we want do the QTL selection. 
 #' @param keeplodprofile Logical (Default TRUE)
 #' @param keeptrace Logical (Default FALSE) 
 #' @param verbose Logical (Default FALSE)
@@ -29,7 +33,7 @@
 #' @examples
 #' data(fake.bc)
 #' fake.bc <- calc.genoprob(fake.bc, step=2.5)
-#' fake.bc <- update.cross(fake.bc, phen2keep = names(fake.bc$pheno)) #Just update the class of fake.bc
+#' fake.bc <- update(fake.bc, phen2keep = names(fake.bc$pheno)) #Just update the class of fake.bc
 #' covar <- fake.bc$pheno[, c('sex','age')]
 #' out1 <- scanoneShape(fake.bc, pheno.col = 1:2, addcovar = covar,
 #' test = "Pillai")
@@ -41,6 +45,8 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
                              additive.only = FALSE,
                              scan.pairs = FALSE, #keep default
                              penalties,
+                             distresh = 0,
+                             lodcolumn = 1,
                              keeplodprofile = TRUE,
                              keeptrace = FALSE, 
                              verbose = FALSE,
@@ -79,9 +85,24 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         }
     }
     #-------------------------------------------------------
+    # 0. remove unnessecary lodcolumn and do some checkings on the adequation between
+    # additive.only arg and the type of lod scores we want do the selection on
+    if (!any(lodcolumn == c(1,2)))
+        stop("lodcolumn must be 1 or 2")
+    if (ncol(qtl) > 3) {
+        qtl <- qtl[, c(1:2, lodcolumn + 2)]
+        if (!additive.only & colnames(qtl)[3] == "lod.add") {
+            additive.only <- TRUE
+            warning("Effects of background QTLs were set to additive only 
+                    because selection is done on lod.add")
+        } else if (additive.only & colnames(qtl)[3] == "lod") {
+            additive.only <- FALSE
+            warning("Effects of background QTLs were set to additive+dominance  
+                    because selection is done on the full model.")
+        }
+    }
+    colnames(qtl)[3] <- "lod"
     # 1. Select the position with largest LOD score from a single-QTL genome scan
-    if (ncol(qtl) > 3) 
-        qtl <- qtl[, 1:3]
     qtl <- qtl[which.max(qtl$lod), , drop = FALSE]
     n.qtls <- 1
     curplod <- qtl$lod - penalties * n.qtls
@@ -115,13 +136,14 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         
         # Penalization of Broman and Sen 2009, p.251
         pLod$lod <- pLod$lod - penalties * n.qtls
-        # Set to NA lod of QTLs already in the model 
+        # Set to pLod to NA for markers closely linked to QTLs already in the model 
         for (q in 1:(n.qtls-1)) {
             pLod[as.character(pLod$chr) == as.character(qtl$chr[q]) & 
-                     pLod$pos == qtl$pos[q], 'lod'] <- NA
+                     abs(pLod$pos - qtl$pos[q]) <= disthresh, lodcolumn + 2] <- NA
         }
         # Get R/qtl max over genome (handle NA)
-        tmp <- max(pLod)[1:3]
+        tmp <- max(pLod, lodcolumn = lodcolumn)[c(1:2, lodcolumn + 2)]
+        colnames(tmp)[3] <- "lod" #ensure colnames consistency after refining positions for rbind()
         # if empty, means no position higher than 0
         # penalty drops LOD scores need updating max.qtl to n.qtls - 1
         if(nrow(tmp) == 0) {
@@ -145,9 +167,9 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         if (refine.locations) {
             if (verbose) cat("--- Refining positions\n")   
             # 2.2.1 refining qtl positions
-            rqtls <- refine.qtl(qtl, cross, fm.red, pheno, covar, chr = NULL, 
-                                max.iter = 10, add.only = additive.only, 
-                                verbose = FALSE)
+            rqtls <- refine.qtl(qtl, cross = cross, fm.red = fm.red, pheno = pheno, 
+                                covar = covar, chr = NULL, 
+                                max.iter = 10, add.only = additive.only, verbose = FALSE)
             if (any(rqtls$pos != qtl$pos)) { # updated positions
                 if (verbose) cat(" ---  Moved a bit\n")
                 qtl <- data.frame(rqtls$chr, rqtls$pos, rqtls$lod) #row.names=rqtls$name
@@ -196,8 +218,9 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         iter <- iter + 1
         if (verbose) cat("remove qtl:",n.qtls,"\n")
         n.qtls <- n.qtls - 1
-        tmp <- leave1qtl(cross, qtl, pheno, covar, fm.red, mod.red$rank, SSCPerr.red, 
-                         additive.only, test)
+        tmp <- leave1qtl(cross, qtls = qtl, pheno = pheno, covar = covar, 
+                         formula.red = fm.red, mod.red.rank = mod.red$rank, 
+                         SSCPerr.red = SSCPerr.red,add.only = additive.only, test = test) 
         # look for best model (the one where the removed qtl has minimal effect)
         tmp$lod <- tmp$lod - penalties * n.qtls
         dropQ <- which.max(tmp$lod) 
@@ -209,7 +232,8 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         qtl <- qtl[order(match(qtl$chr, chr), qtl$pos), ]
         if (refine.locations & n.qtls > 1) {
             if (verbose) cat("--- Refining positions\n")
-            rqtls <- refine.qtl(qtl, cross, fm.red, pheno, covar, chr=NULL, max.iter = 10)
+            rqtls <- refine.qtl(qtl, cross = cross, fm.red = fm.red, 
+                                pheno = pheno, covar = covar, chr = NULL, max.iter = 10)
             if (any(rqtls$pos != qtl$pos)) { # updated positions
                 if (verbose) cat(" ---  Moved a bit\n")
                 qtl <- data.frame(rqtls$chr, rqtls$pos, rqtls$lod)
@@ -220,7 +244,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
                 }
                 #-------------------------------------------------------    
                 # Updating the penalized LOD score of the model
-                geno <- as.matrix(getGeno(cross, Q = qtl, add.only = FALSE))
+                geno <- as.matrix(getGeno(cross, Q = qtl, add.only = additive.only))
                 tmp.form <- as.formula(paste(paste(deparse(fm.red), collapse =""),"+ qtl"))
                 tmp <- lm.shape.test(geno, pheno = pheno, covar = covar, fm.full = tmp.form,
                                      SSCPerr.red = SSCPerr.red, mod.red.rank = mod.red$rank, 
@@ -251,7 +275,8 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
     }
     #-------------------------------------------------------
     # 4. drop1qtl the current best model to make sure lod column is SS II partial lod
-    qq <- drop1qtl(cross, curbest, fm.red, pheno, covar, threshold=0) 
+    qq <- drop1qtl(cross, qtls = curbest, formula.red = fm.red, pheno = pheno, 
+                   covar = covar, threshold=0, add.only = additive.only, test = test) 
     curbest$lod <- qq$partial.logp
     rownames(curbest) <- find.pseudomarker(cross, curbest$chr, curbest$pos, where="prob")
     class(curbest) <- c("summary.stepwiseqtl", "data.frame")
