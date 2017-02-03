@@ -12,13 +12,11 @@
 #' @param refine.locations Logical
 #' @param additive.only Logical. (Defauft FALSE). Setting it to TRUE may be used 
 #'  to force a diplotype model (pure additive) in an intercross (Have to bare in mind
-#'  that it is *NOT* as in \code{\link[qtl]{summary.scanone}}). Consistency with lodcolumn
-#'  is checked and corrected accordingly.
+#'  that it is *NOT* as in \code{\link[qtl]{summary.scanone}}).
 #' @param scan.pairs Logical. (Default FALSE) #keep it default. Not use so far
 #' @param penalties Genomewide threshold 
 #' @param disthresh numeric (Default 0). Minimal distance, between loci already in the model
 #' and a candidate locus, below which the candidate locus is discarded. 
-#' @param lodcolumn numeric (1 or 2). With intercross, scanone returns three lod scores (full model, additive only model, and lod for dominance), lodcolumn allows to specify on which one of the full or additive model we want do the QTL selection. 
 #' @param keeplodprofile Logical (Default TRUE)
 #' @param keeptrace Logical (Default FALSE) 
 #' @param verbose Logical (Default FALSE)
@@ -46,7 +44,6 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
                              scan.pairs = FALSE, #keep default
                              penalties,
                              disthresh = 0,
-                             lodcolumn = 1,
                              keeplodprofile = TRUE,
                              keeptrace = FALSE, 
                              verbose = FALSE,
@@ -87,19 +84,11 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
     #-------------------------------------------------------
     # 0. remove unnessecary lodcolumn and do some checkings on the adequation between
     # additive.only arg and the type of lod scores we want do the selection on
-    if (!any(lodcolumn == c(1,2)))
-        stop("lodcolumn must be 1 or 2")
+    if (additive.only & "bc" %in% class(cross))
+        additive.only <- FALSE 
     if (ncol(qtl) > 3) {
-        qtl <- qtl[, c(1:2, lodcolumn + 2)]
-        if (!additive.only & colnames(qtl)[3] == "lod.add") {
-            additive.only <- TRUE
-            warning("Effects of background QTLs were set to additive only 
-                    because selection is done on lod.add")
-        } else if (additive.only & colnames(qtl)[3] == "lod") {
-            additive.only <- FALSE
-            warning("Effects of background QTLs were set to additive+dominance  
-                    because selection is done on the full model.")
-        }
+        qtl <- qtl[, c(1,2, 3 + additive.only), drop = FALSE]
+        # so either full model if add.only is FALSE or lod.add if TRUE
     }
     colnames(qtl)[3] <- "lod"
     # 1. Select the position with largest LOD score from a single-QTL genome scan
@@ -139,10 +128,10 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         # Set to pLod to NA for markers closely linked to QTLs already in the model 
         for (q in 1:(n.qtls-1)) {
             pLod[as.character(pLod$chr) == as.character(qtl$chr[q]) & 
-                     abs(pLod$pos - qtl$pos[q]) <= disthresh, lodcolumn + 2] <- NA
+                     abs(pLod$pos - qtl$pos[q]) <= disthresh, 3 + additive.only] <- NA
         }
         # Get R/qtl max over genome (handle NA)
-        tmp <- max(pLod, lodcolumn = lodcolumn)[c(1:2, lodcolumn + 2)]
+        tmp <- max(pLod, lodcolumn = 1 + additive.only)[c(1:2, 3 + additive.only)]
         colnames(tmp)[3] <- "lod" #ensure colnames consistency after refining positions for rbind()
         # if empty, means no position higher than 0
         # penalty drops LOD scores need updating max.qtl to n.qtls - 1
@@ -452,7 +441,7 @@ lodprofile.qtl<- function (qtls, cross, fm.red, pheno, covar, chr = NULL, add.on
             tmp <- mvGenomScan(tmp.cross, pheno = pheno, mod.red = fm.red, 
                            covar = covar, back.qtl = geno, test = test)
             if (ncol(tmp) > 3) 
-            tmp <- tmp[, 1:3]
+                tmp <- tmp[, c(1,2, add.only + 3)]
             tmp[is.na(tmp[, 3]), 3] <- 0
             lastOut[[q]] <- tmp
             newpos[q, ] <- max(tmp)
@@ -532,7 +521,7 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
                                back.qtl = geno, test = test)
             # selection on full or additive model depending on add.only arg
             if (ncol(tmp) > 3) { 
-                tmp <- tmp[, c(1,2, 2 + add.only), drop = FALSE]
+                tmp <- tmp[, c(1,2, 3 + add.only), drop = FALSE]
             }
             tmp[is.na(tmp[, 3]), 3] <- 0
             mx.tmp <- max(tmp) #get R/qtl max over the chromosome
@@ -564,7 +553,7 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
         tmp <- mvGenomScan(tmp.cross, pheno, mod.red = fm.red, covar = covar,
                            back.qtl = geno, test = test)
         if (ncol(tmp) > 3) { 
-            tmp <- tmp[, 1:3]
+            tmp <- tmp[, c(1,2, 3 + add.only), drop = FALSE]
         }  
         tmp[is.na(tmp[, 3]), 3] <- 0
         lastOut[[q]] <- tmp
