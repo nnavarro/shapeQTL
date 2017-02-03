@@ -523,9 +523,9 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
             tmp.cross <- subset(cross, chr = qtls[target.qtl[q], 'chr'])
             tmp <- mvGenomScan(tmp.cross, pheno, mod.red = fm.red, covar = covar,
                                back.qtl = geno, test = test)
-            # So far, selection only on full model (not just on dominance or additive only) 
+            # selection on full or additive model depending on add.only arg
             if (ncol(tmp) > 3) { 
-                tmp <- tmp[, 1:3, drop = FALSE]
+                tmp <- tmp[, c(1,2, 2 + add.only), drop = FALSE]
             }
             tmp[is.na(tmp[, 3]), 3] <- 0
             mx.tmp <- max(tmp) #get R/qtl max over the chromosome
