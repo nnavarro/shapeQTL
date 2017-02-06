@@ -215,12 +215,15 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         dropQ <- which.max(tmp$lod) 
         curplod <- max(tmp$lod)
         qtl <- qtl[-dropQ, ] 
-        if (verbose)
-            cat("pLOD = ", curplod, "\n")
         #-------------------------------------------------------    
         # 3.1 Refining qtl positions
         # Re-order qtl (should not make any difference; they should be already ordered) 
         qtl <- qtl[order(match(qtl$chr, chr), qtl$pos), ]
+        if(verbose) {
+            cat("-- QTL model\n")
+            print(qtl[,c(1,2)])
+            cat("pLOD = ", curplod, "\n")
+        }
         if (refine.locations & n.qtls > 1) {
             if (verbose) cat("--- Refining positions\n")
             rqtls <- refine.qtl(qtl, cross = cross, fm.red = fm.red, 
@@ -271,6 +274,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
     curbest$lod <- qq$partial.logp
     rownames(curbest) <- find.pseudomarker(cross, curbest$chr, curbest$pos, where="prob")
     class(curbest) <- c("summary.stepwiseqtl", "data.frame")
+
     #-------------------------------------------------------
     # 5. Refining positions
     # If so then output is a qtl object instead of a summary
@@ -280,7 +284,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
                                   test = test)
         if (!keeplodprofile){
             # return only summary
-            curbest <- data.frame(chr=tmp$chr,pos=tmp$pos, lod=curbest$lod, row.names = tmp$name)
+            curbest <- data.frame(chr=curbest$chr,pos=curbest$pos, lod=curbest$lod, row.names = curbest$name)
             class(curbest) <- c("summary.stepwiseqtl","data.frame")
             attr(curbest, which="pLOD") <- curbestplod
         }
@@ -289,6 +293,10 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
     if(keeptrace)
         attr(curbest, "trace") <- thetrace
     
+    if (verbose) {
+        cat(" -- final best QTL model\n")
+        print(curbest)
+    }
     return(curbest)
 }
 leave1qtl <- function(cross, qtls, pheno, covar, formula.red, mod.red.rank, 
@@ -445,6 +453,7 @@ lodprofile.qtl<- function (qtls, cross, fm.red, pheno, covar, chr = NULL, add.on
             tmp[is.na(tmp[, 3]), 3] <- 0
             lastOut[[q]] <- tmp
             newpos[q, ] <- max(tmp)
+            newpos[q, "chr"] <- qtls[q, "chr"] #in case of being overriden
         }
     }
     qtls <- newpos
@@ -478,15 +487,15 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
         qtls <- qtls[qtls$chr == chr, ]
         if (!length(back.qtl)) break
         if (!length(qtls)) stop("no qtl for this chromosome")
-        back.geno <- getGeno(cross, Q = back.qtl, add.only)
+        back.geno <- getGeno(cross, Q = back.qtl, add.only = add.only)
         covar <- cbind(covar, back.geno)
         # Update the formula of the reduced model
         fm.red <- as.formula(paste(paste(deparse(fm.red), collapse = ""), 
                                    paste(names(back.geno), collapse = "+"), sep = "+"))
     }
     
-    qtls.name <- find.pseudomarker(cross, qtls$chr, qtls$pos, where="prob") 
-    QTL <- makeqtl(cross, qtls$chr, qtls$pos, qtls.name, what="prob")
+    qtls.name <- find.pseudomarker(cross, chr = qtls$chr, pos = qtls$pos, where="prob") 
+    QTL <- makeqtl(cross, chr = qtls$chr, pos = qtls$pos, qtl.name = qtls.name, what="prob")
     n.qtls <- QTL$n.qtl
     
     if (is.null(chr) & n.qtls == 1) {
@@ -561,8 +570,8 @@ refine.qtl <- function(qtls, cross, fm.red, pheno, covar,
         qtls[q, ] <- mx.tmp
         qtls[q, 'chr'] <- as.character(mx.tmp$chr) #!! because chr factor
     }
-    qtls.name <- find.pseudomarker(cross, qtls$chr, qtls$pos, where = "prob")	
-    QTL <- makeqtl(cross, qtls$chr, qtls$pos, qtls.name, what = "prob")
+    qtls.name <- find.pseudomarker(cross, chr = qtls$chr, pos = qtls$pos, where = "prob")	
+    QTL <- makeqtl(cross, chr = qtls$chr, pos = qtls$pos, qtl.name = qtls.name, what = "prob")
     # add the current partial lod scores
     QTL$lod <- qtls$lod
     # add the partial lod score profiles
