@@ -48,6 +48,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
                              keeptrace = FALSE, 
                              verbose = FALSE,
                              test = "Pillai") {
+    
     # This is the model search version of Broman (p.250)
     pheno <- as.matrix(cross$pheno[, pheno.col])
     if (missing(chr)) 
@@ -56,12 +57,17 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
     if (missing(penalties))
         stop("you should run first 'scanoneShape' with permutations to get penalties")
     
+    if (!is.null(covar) & is.matrix(covar)) 
+        covar <- as.data.frame(covar)
+    
     if (missing(formula)) {
         formula <- as.formula(paste("pheno ~", paste(names(covar), collapse = " + ")))
     } else if (is.character(formula)) {
         formula <- as.formula(formula)
     }
-    
+    if (verbose) {
+        cat("Null model used is :", deparse(formula), "\n")
+    }
     # Null model (we don't need it except fm.red and except in leave1)
     fm.red <- as.formula(paste("pheno", paste(deparse(formula[-2]), collapse = " + ")))
     mod.red <- lm(fm.red, data = covar)
@@ -347,7 +353,7 @@ drop1qtl <- function(cross, qtls, formula.red, pheno, covar, threshold,
     cl.qtl <- class(qtls)
     n.qtl <- nrow(qtls)
     if (n.qtl < 2) {
-        warning("Less 1 QTL in your model! drop analysis not done")
+        warning("Less than 2 QTLs in your model! no drop require")
         partial.logp <- qtls$lod
         names(partial.logp) <- rownames(qtls)
     } else {
@@ -381,7 +387,8 @@ drop1qtl <- function(cross, qtls, formula.red, pheno, covar, threshold,
             if (pmatch(test,"Hotelling.Lawley",nomatch=0)) 
                 partial.logp[q] <- Hotelling.test(SSCPfull,SSCPerr.full,dfeff,dferr,rank.E)
             if (pmatch(test,"GoodallF",nomatch=0)) 
-                partial.logp[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, n.ind - mod.red.rank, rank.E)
+                partial.logp[q] <- goodallF.test(diag(SSCPerr.full), diag(SSCPerr.red), dferr, 
+                                                 n.ind - mod.red$rank, rank.E)
         }
     }
     names(partial.logp) <- rownames(qtls)
