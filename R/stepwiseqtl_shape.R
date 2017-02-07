@@ -61,10 +61,16 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
         covar <- as.data.frame(covar)
     
     if (missing(formula)) {
-        formula <- as.formula(paste("pheno ~", paste(names(covar), collapse = " + ")))
+        if (!is.null(covar)){
+            formula <- as.formula(paste("pheno ~", paste(names(covar), collapse = " + ")))
+            warning(paste("reduced model formula created from covar names:", deparse(formula)))
+        } else formula <- as.formula("pheno ~ 1")
     } else if (is.character(formula)) {
         formula <- as.formula(formula)
-    }
+    }  
+    # We need to define covar anyway because stepwise is based on formula. 
+    if (is.null(covar)) covar <- cross$pheno
+    
     if (verbose) {
         cat("Null model used is :", deparse(formula), "\n")
     }
