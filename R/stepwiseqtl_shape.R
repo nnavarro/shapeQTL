@@ -136,7 +136,7 @@ stepwiseqtlShape <- function(cross, chr, pheno.col = 1, qtl, formula, max.qtl = 
                             updateRedFormula = FALSE)
         
         # Penalization of Broman and Sen 2009, p.251
-        pLod$lod <- pLod$lod - penalties * n.qtls
+        pLod[, 3 + additive.only] <- pLod[, 3 + additive.only] - penalties * n.qtls
         # Set to pLod to NA for markers closely linked to QTLs already in the model 
         for (q in 1:(n.qtls-1)) {
             pLod[as.character(pLod$chr) == as.character(qtl$chr[q]) & 
