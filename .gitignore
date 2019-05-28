@@ -1,5 +1,12 @@
+.Rproj
 .Rproj.user
 .Rhistory
+.Rapp.history
 .RData
+.Ruserdata
 .o
+.dll
 .so
+.DS_store
+/*.tar.gz
+/*.Rcheck/
