@@ -50,7 +50,7 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
             lod <- apply(pr,2,lm.shape.test, pheno, covar, fm.full, SSCPerr.red,
                          mod.red$rank, rank.S, back.qtl, test)
             z <- data.frame(chr = rep(j,length(map)), 
-                            pos = map,
+                            pos = as.matrix(map),
                             lod = lod)
             rownames(z) <- names(map)
             class(z) <- c("scanone","data.frame")
@@ -83,7 +83,7 @@ mvGenomScan <- function(cross, pheno, mod.red, covar, back.qtl = NULL,
                                   pheno, covar, fm.full, SSCPerr.red, mod.red$rank,
                                   rank.S, back.qtl, test)
                 z <- data.frame(chr = rep(j,length(map)), 
-                                pos = map, 
+                                pos = as.matrix(map), 
                                 lod = lod.full, 
                                 lod.add = lod.add,
                                 lod.dom = lod.dom)
